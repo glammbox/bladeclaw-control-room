@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 
-const NODE_W = 80
-const NODE_H = 48
-const GAP = 20
+const NODE_W = 60
+const NODE_H = 28
+const GAP = 14
 const STAGES = ['pulse', 'planner', 'research', 'market', 'content', 'media', 'builder', 'validator', 'optimizer', 'package']
 const TOTAL_W = STAGES.length * (NODE_W + GAP) - GAP + 20
 const CANVAS_H = NODE_H + 60
@@ -122,8 +122,8 @@ export default function DAGWorkflowCanvas() {
       <div className="font-label mb-2 text-sm tracking-[0.2em] uppercase" style={{ color: 'var(--chrome-bright)' }}>
         DAG Workflow
       </div>
-      <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-        <svg width={TOTAL_W} height={CANVAS_H} viewBox={`0 0 ${TOTAL_W} ${CANVAS_H}`} style={{ display: 'block' }}>
+      <div style={{ width: '100%', maxHeight: '80px', overflow: 'hidden', position: 'relative' }}>
+        <svg width={TOTAL_W} height={CANVAS_H} viewBox={`0 0 ${TOTAL_W} ${CANVAS_H}`} preserveAspectRatio="xMidYMid meet" style={{ display: 'block', width: '100%' }}>
           <defs>
             <marker id="dag-arrow" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto">
               <polygon points="0 0, 6 2.5, 0 5" fill="rgba(0,212,255,0.4)" />
@@ -203,9 +203,9 @@ export default function DAGWorkflowCanvas() {
 
                 <text
                   x={x + NODE_W / 2}
-                  y={y + 16}
+                  y={y + 14}
                   textAnchor="middle"
-                  fontSize="8"
+                  fontSize="6"
                   fontFamily="Rajdhani, sans-serif"
                   fill="#c0cfe0"
                   fontWeight="600"
@@ -213,25 +213,14 @@ export default function DAGWorkflowCanvas() {
                   {label.toUpperCase()}
                 </text>
 
-                <text
-                  x={x + NODE_W / 2}
-                  y={y + 28}
-                  textAnchor="middle"
-                  fontSize="7"
-                  fontFamily="Inter, system-ui, sans-serif"
-                  fill="rgba(138,146,164,0.7)"
-                >
-                  {isActive && taskText ? taskText : desc}
-                </text>
-
-                <circle cx={x + NODE_W - 8} cy={y + 8} r={3.5} fill={getNodeStroke(node.status)}>
+                <circle cx={x + NODE_W - 6} cy={y + 6} r={3} fill={getNodeStroke(node.status)}>
                   {isActive && (
                     <animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite" />
                   )}
                 </circle>
 
                 {node.status === 'completed' && (
-                  <text x={x + NODE_W - 8} y={y + 12} textAnchor="middle" fontSize="7" fill="var(--status-ok)">
+                  <text x={x + NODE_W - 6} y={y + 9} textAnchor="middle" fontSize="6" fill="var(--status-ok)">
                     ✓
                   </text>
                 )}

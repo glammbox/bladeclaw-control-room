@@ -56,7 +56,7 @@ async function sendSpawnRequest(modelName: string) {
     await fetch('http://localhost:18789/api/sessions/agent:main:main/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: `Spawn a ${modelName} session` }),
+      body: JSON.stringify({ message: `Spawn a ${modelName} session for me` }),
     })
   } catch {
     // Silently fail — UI already shows toast
