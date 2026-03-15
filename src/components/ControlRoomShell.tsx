@@ -128,18 +128,20 @@ function SideNav() {
 export default function ControlRoomShell({ children }: ControlRoomShellProps) {
   const shellRef = useRef<HTMLDivElement>(null)
 
-  // Prevent any scrollbar from appearing on the shell
+  // Allow natural page scroll — no overflow lock
   useEffect(() => {
-    document.body.style.overflow = 'hidden'
+    document.body.style.overflowX = 'hidden'
+    document.body.style.overflowY = 'auto'
     return () => {
-      document.body.style.overflow = ''
+      document.body.style.overflowX = ''
+      document.body.style.overflowY = ''
     }
   }, [])
 
   return (
     <div
       ref={shellRef}
-      className="fixed inset-0 flex flex-col overflow-hidden"
+      className="min-h-screen flex flex-col"
       style={{
         backgroundColor: '#050505',
         backgroundImage: `
@@ -147,6 +149,7 @@ export default function ControlRoomShell({ children }: ControlRoomShellProps) {
           linear-gradient(90deg, rgba(0, 212, 255, 0.025) 1px, transparent 1px)
         `,
         backgroundSize: '60px 60px',
+        overflowX: 'hidden',
       }}
     >
       {/* HUD overlay image */}
@@ -173,15 +176,20 @@ export default function ControlRoomShell({ children }: ControlRoomShellProps) {
       <ScanLine />
       <HUDCorners />
 
-      {/* Status bar */}
-      <StatusBar />
+      {/* Status bar — sticky at top */}
+      <div className="sticky top-0 z-40">
+        <StatusBar />
+      </div>
 
-      {/* Main layout */}
-      <div className="flex flex-1 overflow-hidden relative z-20">
-        <SideNav />
+      {/* Main layout — natural height, scrolls with page */}
+      <div className="flex flex-1 relative z-20" style={{ minHeight: 0 }}>
+        {/* Side nav — sticky so it stays visible while scrolling */}
+        <div className="sticky top-[var(--statusbar-h,40px)] self-start h-[calc(100vh-var(--statusbar-h,40px))]">
+          <SideNav />
+        </div>
 
-        {/* Page content */}
-        <main className="flex-1 overflow-hidden relative">
+        {/* Page content — grows naturally */}
+        <main className="flex-1 relative" style={{ minWidth: 0, overflowX: 'hidden' }}>
           {children}
         </main>
       </div>

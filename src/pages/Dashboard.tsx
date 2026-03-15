@@ -179,7 +179,7 @@ export default function Dashboard() {
 
           {/* AgentMatrix */}
           <div className="agent-matrix-cell">
-            <AgentMatrix className="h-full" />
+            <AgentMatrix />
           </div>
 
           {/* Intel Feed — MediaHub (spans 2 rows on desktop) */}
@@ -189,7 +189,7 @@ export default function Dashboard() {
 
           {/* TokenCostTracker */}
           <div className="token-tracker-cell">
-            <TokenCostTracker className="h-full" />
+            <TokenCostTracker />
           </div>
 
           {/* DAGWorkflowCanvas — horizontal scroll on small screens */}
@@ -209,7 +209,7 @@ export default function Dashboard() {
 
           {/* AgentHealthPanel — token cost view */}
           <div className="agent-health-cell">
-            <TokenCostTracker className="h-full" />
+            <TokenCostTracker />
           </div>
         </div>
       </motion.div>
