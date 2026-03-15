@@ -159,6 +159,7 @@ export default function Dashboard() {
         exit={{ opacity: 0, y: -8 }}
         transition={{ duration: 0.3, ease: 'easeInOut' }}
         className="w-full flex flex-col gap-2 p-2 pb-16"
+        style={{ maxWidth: '100vw', overflowX: 'hidden' }}
       >
         {/* ── Command Header (full width) ── */}
         <div className="shrink-0">
