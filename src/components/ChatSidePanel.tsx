@@ -42,27 +42,38 @@ export default function ChatSidePanel() {
   }
 
   return (
-    <div style={{display:'flex', flexDirection:'column', height:'100%', background:'#0a0a0f', border:'1px solid rgba(0,212,255,0.12)', borderRadius:'4px', overflow:'hidden'}}>
+    <div style={{display:'flex',flexDirection:'column',height:'100%',background:'rgba(10,14,26,0.95)',backdropFilter:'blur(16px)',border:'1px solid rgba(0,212,255,0.15)',borderRadius:'6px',overflow:'hidden'}}>
       {/* Header */}
-      <div style={{padding:'8px 12px', borderBottom:'1px solid rgba(0,212,255,0.10)', display:'flex', alignItems:'center', gap:'6px', flexShrink:0}}>
+      <div style={{padding:'8px 12px',borderBottom:'1px solid rgba(0,212,255,0.1)',display:'flex',alignItems:'center',gap:'6px',flexShrink:0,background:'rgba(5,9,20,0.8)'}}>
         <Terminal size={11} color="#00d4ff" />
-        <span style={{fontFamily:'Orbitron,monospace', fontSize:'9px', letterSpacing:'0.1em', color:'rgba(0,212,255,0.7)', textTransform:'uppercase'}}>Director</span>
+        <span style={{fontFamily:'Orbitron,monospace',fontSize:'9px',letterSpacing:'0.15em',color:'rgba(0,212,255,0.8)',textTransform:'uppercase'}}>Director</span>
         <span style={{width:'6px',height:'6px',borderRadius:'50%',background:'#22c55e',marginLeft:'auto',animation:'pulse 2s infinite'}} />
       </div>
       {/* Messages */}
       <div style={{flex:1, overflowY:'auto', padding:'8px', display:'flex', flexDirection:'column', gap:'6px'}}>
         {messages.map(msg => (
-          <div key={msg.id} style={{
-            alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-            maxWidth:'90%',
-            padding:'5px 8px',
-            borderRadius:'3px',
-            fontSize:'11px',
-            lineHeight:1.4,
-            fontFamily:'Inter,system-ui,sans-serif',
-            background: msg.role === 'director' ? 'rgba(0,212,255,0.07)' : 'rgba(192,192,192,0.07)',
-            border: `1px solid ${msg.role === 'director' ? 'rgba(0,212,255,0.15)' : 'rgba(192,192,192,0.12)'}`,
-            color: '#c0c0c0'
+          <div key={msg.id} style={msg.role === 'director' ? {
+            alignSelf: 'flex-start',
+            maxWidth: '90%',
+            background:'rgba(0,212,255,0.07)',
+            border:'1px solid rgba(0,212,255,0.12)',
+            borderRadius:'4px',
+            padding:'6px 8px',
+            fontSize:'12px',
+            fontFamily:'Inter,sans-serif',
+            color:'#c0cfe0',
+            lineHeight:1.5
+          } : {
+            alignSelf: 'flex-end',
+            maxWidth: '90%',
+            background:'rgba(138,146,164,0.08)',
+            border:'1px solid rgba(138,146,164,0.1)',
+            borderRadius:'4px',
+            padding:'6px 8px',
+            fontSize:'12px',
+            fontFamily:'Inter,sans-serif',
+            color:'#8892a4',
+            lineHeight:1.5
           }}>
             {msg.text}
           </div>
@@ -77,10 +88,7 @@ export default function ChatSidePanel() {
           onChange={e => setMessage(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && send()}
           placeholder="Message..."
-          style={{
-            flex:1, background:'transparent', border:'none', outline:'none',
-            fontSize:'12px', color:'#c0c0c0', fontFamily:'Inter,system-ui,sans-serif'
-          }}
+          style={{flex:1,background:'rgba(0,212,255,0.04)',border:'1px solid rgba(0,212,255,0.1)',borderRadius:'3px',padding:'5px 8px',color:'#c0cfe0',fontFamily:'Inter,sans-serif',outline:'none',fontSize:'16px'}}
         />
         <button onClick={send} disabled={!message.trim()}
           style={{background:'none', border:'none', cursor:'pointer', color: message.trim() ? '#00d4ff' : 'rgba(192,192,192,0.25)', padding:0}}>

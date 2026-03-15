@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'motion/react'
-import { useLocation } from 'react-router-dom'
 import { Settings } from 'lucide-react'
 
 // ─────────────────────────────────────────────
@@ -104,7 +103,6 @@ function HUDStatusBar({
 // ─────────────────────────────────────────────
 
 export default function Dashboard() {
-  const location = useLocation()
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   // ── Real-time data hooks ──────────────────
@@ -130,6 +128,18 @@ export default function Dashboard() {
 
   return (
     <>
+      {/* Hero background — fixed, very low opacity */}
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: -1,
+        backgroundImage: 'url(https://res.cloudinary.com/di3ctzmzu/image/upload/q_auto,f_auto,w_1920/v1773611043/bladeclaw/nhjzxic6bundwuknosb2.png)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        opacity: 0.06,
+        pointerEvents: 'none',
+      }} />
+
       {/* Neon progress bar at top */}
       <div
         className="fixed top-0 left-0 z-50 h-0.5 bg-neon/60 transition-all duration-500"
@@ -148,16 +158,13 @@ export default function Dashboard() {
       <SettingsToggle onClick={() => setSettingsOpen(true)} />
       <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
-      {/* Chat side panel handled in grid below */}
-
       {/* Main dashboard page */}
       <motion.div
-        key={location.pathname}
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -8 }}
         transition={{ duration: 0.3, ease: 'easeInOut' }}
-        className="w-full flex flex-col gap-2 p-2 pb-16"
+        className="w-full pb-4"
         style={{ maxWidth: '100vw', overflowX: 'hidden' }}
       >
         {/* ── Command Header (full width) ── */}
@@ -166,53 +173,48 @@ export default function Dashboard() {
         </div>
 
         {/* ── Main grid ──
-          Uses dashboard-grid CSS class for desktop (12-col, row placement).
+          Uses dashboard-grid CSS class for desktop (10-col, row placement).
           CSS media queries handle tablet/mobile fallbacks.
         */}
-        <div className="grid gap-2 dashboard-grid">
-
-          {/* Arc Reactor cell — AgentHealthPanel (overview) */}
-          <div className="arc-reactor-cell">
-            <AgentHealthPanel />
-          </div>
+        <div className="dashboard-grid">
 
           {/* AgentMatrix */}
-          <div className="agent-matrix-cell">
+          <div className="agent-matrix-cell hud-panel">
             <AgentMatrix />
           </div>
 
           {/* Intel Feed — MediaHub (spans 2 rows on desktop) */}
-          <div className="intel-feed-cell">
+          <div className="intel-feed-cell hud-panel">
             <MediaHub />
           </div>
 
           {/* TokenCostTracker */}
-          <div className="token-tracker-cell">
+          <div className="token-tracker-cell hud-panel">
             <TokenCostTracker />
           </div>
 
           {/* DAGWorkflowCanvas — horizontal scroll on small screens */}
-          <div className="dag-canvas-cell" style={{ overflowX: 'auto' }}>
+          <div className="dag-canvas-cell hud-panel" style={{ overflowX: 'auto' }}>
             <DAGWorkflowCanvas />
           </div>
 
           {/* DeliveriesBrowser */}
-          <div className="deliveries-cell">
+          <div className="deliveries-cell hud-panel">
             <DeliveriesBrowser />
           </div>
 
           {/* ModelSpawner */}
-          <div className="model-spawner-cell">
+          <div className="model-spawner-cell hud-panel">
             <ModelSpawner />
           </div>
 
-          {/* AgentHealthPanel — token cost view */}
-          <div className="agent-health-cell">
-            <TokenCostTracker />
+          {/* AgentHealthPanel */}
+          <div className="agent-health-cell hud-panel">
+            <AgentHealthPanel />
           </div>
 
           {/* Chat side panel — right column, full height */}
-          <div className="chat-panel-cell">
+          <div className="chat-panel-cell hud-panel">
             <ChatSidePanel />
           </div>
         </div>

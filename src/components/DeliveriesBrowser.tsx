@@ -51,16 +51,16 @@ const PROJECT_FILES: Record<string, string[]> = {
 }
 
 function StatusBadge({ status }: { status: DeliveryStatus }) {
-  const configs: Record<DeliveryStatus, { label: string; icon: LucideIcon; cls: string }> = {
-    shipped:  { label: 'SHIPPED',  icon: CheckCircle,  cls: 'text-green-400 border-green-400/40 bg-green-400/5'  },
-    building: { label: 'BUILDING', icon: Clock,        cls: 'text-neon border-neon/40 bg-neon/5 animate-pulse'   },
-    review:   { label: 'REVIEW',   icon: AlertCircle,  cls: 'text-amber-400 border-amber-400/40 bg-amber-400/5'  },
-    failed:   { label: 'FAILED',   icon: XCircle,      cls: 'text-red-400 border-red-400/40 bg-red-400/5'        },
+  const configs: Record<DeliveryStatus, { label: string; icon: LucideIcon; badgeStyle: React.CSSProperties }> = {
+    shipped:  { label: 'SHIPPED',  icon: CheckCircle,  badgeStyle: {background:'rgba(34,197,94,0.12)',border:'1px solid rgba(34,197,94,0.3)',color:'#22c55e',fontFamily:'Rajdhani,sans-serif',fontWeight:600,letterSpacing:'0.08em',fontSize:'9px',padding:'2px 6px',borderRadius:'3px'} },
+    building: { label: 'BUILDING', icon: Clock,        badgeStyle: {background:'rgba(0,212,255,0.1)',border:'1px solid rgba(0,212,255,0.3)',color:'#00d4ff',fontFamily:'Rajdhani,sans-serif',fontWeight:600,letterSpacing:'0.08em',fontSize:'9px',padding:'2px 6px',borderRadius:'3px'} },
+    review:   { label: 'REVIEW',   icon: AlertCircle,  badgeStyle: {background:'rgba(245,158,11,0.1)',border:'1px solid rgba(245,158,11,0.3)',color:'#f59e0b',fontFamily:'Rajdhani,sans-serif',fontWeight:600,letterSpacing:'0.08em',fontSize:'9px',padding:'2px 6px',borderRadius:'3px'} },
+    failed:   { label: 'FAILED',   icon: XCircle,      badgeStyle: {background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.3)',color:'#ef4444',fontFamily:'Rajdhani,sans-serif',fontWeight:600,letterSpacing:'0.08em',fontSize:'9px',padding:'2px 6px',borderRadius:'3px'} },
   }
-  const { label, icon: Icon, cls } = configs[status]
+  const { label, icon: Icon, badgeStyle } = configs[status]
 
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-sm border text-[10px] font-orbitron tracking-wider ${cls}`}>
+    <span style={{...badgeStyle, display:'inline-flex', alignItems:'center', gap:'3px'}}>
       <Icon size={9} />
       {label}
     </span>
@@ -312,7 +312,7 @@ export default function DeliveriesBrowser() {
                 >
                   <td className="py-2 pr-3 font-mono text-chrome group-hover:text-neon transition-colors">
                     <div className="flex items-center gap-2">
-                      <span className="truncate max-w-[120px]">{d.project}</span>
+                      <span className="truncate max-w-[120px]" style={{fontFamily:'Space Grotesk,sans-serif',fontWeight:500}}>{d.project}</span>
                       {d.status === 'shipped' && (() => {
                         const slug = d.project.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
                         const url = PROJECT_URLS[d.project] || PROJECT_URLS[slug]

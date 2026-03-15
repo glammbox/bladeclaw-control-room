@@ -196,15 +196,15 @@ export default function RadioPlayer() {
   }, [playing, activeStation, playStation, stopAnalyser, startIdleAnim])
 
   return (
-    <div className="flex items-center gap-3 h-12 px-3 border border-neon/10 rounded-sm bg-panel/60">
+    <div style={{display:'flex',alignItems:'center',gap:'10px',height:'48px',padding:'0 12px',background:'rgba(15,22,41,0.85)',backdropFilter:'blur(8px)',border:'1px solid rgba(0,212,255,0.1)',borderRadius:'6px'}}>
       <Radio size={12} className="text-neon/50 shrink-0" />
       <div className="flex-1 min-w-0">
-        <div className="text-xs font-medium text-chrome truncate">{currentStation.name}</div>
-        <div className="text-[9px] font-mono text-neon/50">{currentStation.genre}</div>
+        <div className="truncate" style={{fontFamily:'Space Grotesk,sans-serif',fontWeight:500,color:'#c0cfe0',fontSize:'12px'}}>{currentStation.name}</div>
+        <div style={{fontFamily:'Rajdhani,sans-serif',fontWeight:600,letterSpacing:'0.08em',color:'rgba(0,212,255,0.5)',fontSize:'9px',border:'1px solid rgba(0,212,255,0.2)',padding:'1px 5px',borderRadius:'2px',display:'inline-block'}}>{currentStation.genre}</div>
       </div>
       <button onClick={prevStation} className="text-chrome-dark hover:text-chrome transition-colors"><SkipBack size={11} /></button>
       <button onClick={togglePlay}
-        className="w-7 h-7 rounded-sm border border-neon/20 flex items-center justify-center text-neon hover:border-neon/50 transition-all">
+        style={{width:'28px',height:'28px',borderRadius:'4px',border:'1px solid rgba(0,212,255,0.25)',background:'rgba(0,212,255,0.08)',display:'flex',alignItems:'center',justifyContent:'center',color:'#00d4ff',cursor:'pointer'}}>
         {playing ? <Pause size={11} /> : <Play size={11} />}
       </button>
       <button onClick={nextStation} className="text-chrome-dark hover:text-chrome transition-colors"><SkipForward size={11} /></button>

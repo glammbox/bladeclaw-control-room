@@ -214,11 +214,19 @@ export default function MediaHub() {
             key={t.id}
             onClick={() => setActiveTab(t.id)}
             className="shrink-0 flex-1 px-1 py-1 rounded-sm text-[9px] font-orbitron tracking-wider transition-all duration-200 border"
-            style={{
+            style={activeTab === t.id ? {
               minWidth: '40px',
-              borderColor: activeTab === t.id ? t.color + '50' : 'transparent',
-              backgroundColor: activeTab === t.id ? t.color + '12' : 'transparent',
-              color: activeTab === t.id ? t.color : 'rgba(192,192,192,0.4)',
+              borderColor: t.color + '50',
+              backgroundColor: t.color + '15',
+              color: t.color,
+              fontFamily: 'Rajdhani,sans-serif',
+              fontWeight: 600,
+              letterSpacing: '0.08em',
+            } : {
+              minWidth: '40px',
+              borderColor: 'transparent',
+              backgroundColor: 'transparent',
+              color: 'rgba(192,192,192,0.4)',
             }}
           >
             {t.label}

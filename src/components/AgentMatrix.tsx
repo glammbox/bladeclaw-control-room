@@ -1,22 +1,18 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'motion/react'
 import SoulAgentPanel, { type AgentData, type AgentStatus } from './SoulAgentPanel'
 
-// ─────────────────────────────────────────────
-// Mock data
-// ─────────────────────────────────────────────
-
 const AGENT_MODELS: Record<string, string> = {
-  'pulse': 'Grok Fast',
-  'planner': 'GPT-5.4',
-  'research': 'GPT-5.4',
-  'market': 'Grok Fast',
-  'content': 'Claude Sonnet',
-  'media': 'Gemini Flash',
-  'builder': 'Claude Sonnet',
-  'validator': 'GPT-5.4',
-  'optimizer': 'Gemini Pro',
-  'director': 'Claude Sonnet',
+  pulse: 'Grok Fast',
+  planner: 'GPT-5.4',
+  research: 'GPT-5.4',
+  market: 'Grok Fast',
+  content: 'Claude Sonnet',
+  media: 'Gemini Flash',
+  builder: 'Claude Sonnet',
+  validator: 'GPT-5.4',
+  optimizer: 'Gemini Pro',
+  director: 'Claude Sonnet',
 }
 
 const AGENT_TEMPLATES: Omit<AgentData, 'status' | 'queueDepth' | 'latencyMs' | 'lastAction' | 'tokensBurned' | 'progressPct'>[] = [
@@ -54,7 +50,7 @@ function randomStatus(): AgentStatus {
   const r = Math.random()
   if (r < 0.25) return 'active'
   if (r < 0.55) return 'idle'
-  if (r < 0.80) return 'complete'
+  if (r < 0.8) return 'complete'
   return 'error'
 }
 
@@ -72,7 +68,7 @@ function generateAgentData(): AgentData[] {
 
 function evolveAgent(agent: AgentData): AgentData {
   const r = Math.random()
-  const statusChange = r < 0.12  // 12% chance of status flip
+  const statusChange = r < 0.12
 
   let newStatus = agent.status
   if (statusChange) {
@@ -95,17 +91,14 @@ function evolveAgent(agent: AgentData): AgentData {
     latencyMs: Math.max(20, Math.min(800, agent.latencyMs + Math.floor(Math.random() * 40) - 20)),
     lastAction: actionChange ? randomAction(agent.id) : agent.lastAction,
     tokensBurned: agent.tokensBurned + Math.floor(Math.random() * 50),
-    progressPct: newStatus === 'complete'
-      ? 100
-      : newStatus === 'idle'
-      ? 0
-      : Math.min(99, agent.progressPct + Math.floor(Math.random() * 5)),
+    progressPct:
+      newStatus === 'complete'
+        ? 100
+        : newStatus === 'idle'
+          ? 0
+          : Math.min(99, agent.progressPct + Math.floor(Math.random() * 5)),
   }
 }
-
-// ─────────────────────────────────────────────
-// Section header
-// ─────────────────────────────────────────────
 
 function MatrixHeader({ agents }: { agents: AgentData[] }) {
   const activeCount = agents.filter((a) => a.status === 'active').length
@@ -114,36 +107,32 @@ function MatrixHeader({ agents }: { agents: AgentData[] }) {
   return (
     <div className="flex items-center justify-between mb-4">
       <div>
-        <h2 className="font-orbitron text-sm font-bold text-neon tracking-[0.2em] uppercase">
+        <h2 className="font-label text-sm tracking-[0.24em] uppercase" style={{ color: 'var(--neon)' }}>
           Agent Matrix
         </h2>
-        <p className="font-mono text-[10px] text-chrome-dark mt-0.5">
+        <p className="font-body text-[10px] mt-0.5" style={{ color: 'var(--chrome-dim)' }}>
           Active units and operational status
         </p>
       </div>
 
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-neon" style={{ boxShadow: '0 0 4px #00d4ff' }} />
-          <span className="font-mono text-[10px] text-chrome-dark">{activeCount} ACTIVE</span>
+          <span className="w-2 h-2 rounded-full agent-active" style={{ backgroundColor: 'var(--neon)' }} />
+          <span className="font-data text-[10px]" style={{ color: 'var(--chrome-dim)' }}>{activeCount} ACTIVE</span>
         </div>
         {errorCount > 0 && (
           <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-red-500" style={{ boxShadow: '0 0 4px #ff3355' }} />
-            <span className="font-mono text-[10px] text-red-400">{errorCount} ERR</span>
+            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--status-error)', boxShadow: '0 0 6px rgba(239,68,68,0.5)' }} />
+            <span className="font-data text-[10px]" style={{ color: 'var(--status-error)' }}>{errorCount} ERR</span>
           </div>
         )}
         <div className="flex items-center gap-1.5">
-          <span className="font-mono text-[10px] text-chrome-dark/50">{agents.length} TOTAL</span>
+          <span className="font-data text-[10px]" style={{ color: 'rgba(192,192,192,0.45)' }}>{agents.length} TOTAL</span>
         </div>
       </div>
     </div>
   )
 }
-
-// ─────────────────────────────────────────────
-// Main export
-// ─────────────────────────────────────────────
 
 interface AgentMatrixProps {
   className?: string
@@ -152,7 +141,6 @@ interface AgentMatrixProps {
 export default function AgentMatrix({ className = '' }: AgentMatrixProps) {
   const [agents, setAgents] = useState<AgentData[]>(() => generateAgentData())
 
-  // Simulate live updates every 2.5s
   useEffect(() => {
     const id = setInterval(() => {
       setAgents((prev) => prev.map((a) => (Math.random() < 0.4 ? evolveAgent(a) : a)))
@@ -164,7 +152,6 @@ export default function AgentMatrix({ className = '' }: AgentMatrixProps) {
     <div className={className}>
       <MatrixHeader agents={agents} />
 
-      {/* Responsive grid: 2-col mobile → 3-col md → 5-col desktop */}
       <motion.div
         className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2"
         initial={{ opacity: 0 }}
@@ -174,10 +161,16 @@ export default function AgentMatrix({ className = '' }: AgentMatrixProps) {
         {agents.map((agent, i) => (
           <motion.div
             key={agent.id}
-            className="min-w-0"
+            className="min-w-0 corner-bracket hud-panel rounded-sm"
+            style={{
+              border: agent.status === 'active' ? '1px solid rgba(0,212,255,0.35)' : '1px solid rgba(0,212,255,0.12)',
+              boxShadow: agent.status === 'active' ? '0 0 16px rgba(0,212,255,0.25), 0 0 32px rgba(0,212,255,0.1)' : undefined,
+              opacity: agent.status === 'idle' ? 0.6 : 1,
+            }}
             initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
+            animate={{ opacity: agent.status === 'idle' ? 0.6 : 1, y: 0 }}
             transition={{ delay: i * 0.04, duration: 0.3 }}
+            whileHover={{ y: -1 }}
           >
             <SoulAgentPanel
               agent={agent}

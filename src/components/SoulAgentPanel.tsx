@@ -280,7 +280,7 @@ export default function SoulAgentPanel({ agent, compact = false, modelLabel }: S
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-0.5">
-            <span className="font-orbitron text-[11px] font-bold text-chrome tracking-wider leading-none truncate">
+            <span className="font-orbitron text-[11px] font-bold text-chrome tracking-wider leading-none truncate" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               {agent.name.toUpperCase()}
             </span>
             <StatusDot status={agent.status} />

@@ -93,35 +93,32 @@ export default function ModelSpawner() {
         {MODELS.map(model => (
           <div
             key={model.id}
-            className="rounded-sm border flex flex-col items-center justify-center gap-2 transition-all duration-200 cursor-default"
+            className="flex flex-col items-center justify-center gap-2"
             style={{
               height: '60px',
               minWidth: 0,
-              borderColor: spawning === model.id ? model.color + '80' : model.color + '25',
-              backgroundColor: spawning === model.id ? model.color + '10' : 'transparent',
+              background:'rgba(15,22,41,0.85)',
+              backdropFilter:'blur(8px)',
+              border: spawning === model.id ? `1px solid ${model.color}80` : '1px solid rgba(0,212,255,0.12)',
+              borderRadius:'6px',
+              cursor:'pointer',
+              transition:'all 0.2s ease',
               boxShadow: spawning === model.id ? `0 0 10px ${model.color}30` : 'none',
             }}
+            onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 0 16px rgba(0,212,255,0.2)';e.currentTarget.style.borderColor='rgba(0,212,255,0.35)'}}
+            onMouseLeave={e=>{e.currentTarget.style.boxShadow=spawning?`0 0 10px ${model.color}30`:'none';e.currentTarget.style.borderColor=spawning===model.id?model.color+'80':'rgba(0,212,255,0.12)'}}
           >
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: model.dotColor }} />
-              <span className="font-orbitron text-[9px] tracking-wider" style={{ color: model.color }}>
+              <span className="text-[9px] tracking-wider" style={{ color: model.color, fontFamily:'Space Grotesk,sans-serif', fontWeight:600 }}>
                 {model.name}
               </span>
             </div>
             <button
               onClick={() => handleSpawn(model)}
               disabled={!!spawning}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-sm border text-[9px] font-orbitron tracking-wider transition-all duration-200 disabled:opacity-40"
-              style={{
-                borderColor: model.color + '40',
-                color: model.color,
-              }}
-              onMouseEnter={e => {
-                if (!spawning) (e.currentTarget as HTMLButtonElement).style.backgroundColor = model.color + '15'
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent'
-              }}
+              className="btn-neon disabled:opacity-40"
+              style={{fontSize:'9px',padding:'2px 8px'}}
             >
               {spawning === model.id ? (
                 <>
