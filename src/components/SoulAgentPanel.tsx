@@ -231,9 +231,10 @@ function MetricChip({ label, value }: { label: string; value: string | number })
 interface SoulAgentPanelProps {
   agent: AgentData
   compact?: boolean
+  modelLabel?: string
 }
 
-export default function SoulAgentPanel({ agent, compact = false }: SoulAgentPanelProps) {
+export default function SoulAgentPanel({ agent, compact = false, modelLabel }: SoulAgentPanelProps) {
   const isActive = agent.status === 'active'
   const isError = agent.status === 'error'
   const isComplete = agent.status === 'complete'
@@ -290,6 +291,11 @@ export default function SoulAgentPanel({ agent, compact = false }: SoulAgentPane
           >
             {STATUS_LABELS[agent.status]}
           </span>
+          {modelLabel && (
+            <div style={{ fontSize: '9px', color: 'rgba(0,212,255,0.5)', fontFamily: 'Inter, system-ui, sans-serif', marginTop: '2px' }}>
+              {modelLabel}
+            </div>
+          )}
         </div>
       </div>
 

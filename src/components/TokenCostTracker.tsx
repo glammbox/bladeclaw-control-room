@@ -2,6 +2,22 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 
 // ─────────────────────────────────────────────
+// Model Pricing Table
+// ─────────────────────────────────────────────
+
+const MODEL_PRICING: Record<string, { input: number; output: number; label: string }> = {
+  'claude-sonnet-4-6':       { input: 3.00,  output: 15.00, label: 'Claude Sonnet 4.6' },
+  'gpt-5.4':                 { input: 2.50,  output: 10.00, label: 'GPT-5.4' },
+  'gpt-4o':                  { input: 2.50,  output: 10.00, label: 'GPT-4o' },
+  'grok-4-1-fast-reasoning': { input: 0.60,  output: 2.40,  label: 'Grok Fast' },
+  'gemini-3.1-pro-preview':  { input: 1.25,  output: 5.00,  label: 'Gemini Pro' },
+  'gemini-3-flash-preview':  { input: 0.15,  output: 0.60,  label: 'Gemini Flash' },
+}
+// Prices are per 1M tokens ($/1M)
+
+const MODEL_USAGE_KEYS = Object.keys(MODEL_PRICING)
+
+// ─────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────
 
@@ -356,6 +372,105 @@ export default function TokenCostTracker({ className = '' }: TokenCostTrackerPro
         {state.agents.map((agent) => (
           <SpendBar key={agent.id} agent={agent} maxCost={maxAgentCost} />
         ))}
+      </div>
+
+      {/* Divider */}
+      <div className="h-px bg-white/5" />
+
+      {/* Model Pricing Breakdown */}
+      <ModelPricingTable activeModel="claude-sonnet-4-6" />
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// Model Pricing Table
+// ─────────────────────────────────────────────
+
+const SESSION_MODEL_USAGE: Record<string, { inputTokens: number; outputTokens: number }> = {
+  'claude-sonnet-4-6':       { inputTokens: 18400, outputTokens: 6200 },
+  'gpt-5.4':                 { inputTokens: 12800, outputTokens: 4100 },
+  'gpt-4o':                  { inputTokens: 5200,  outputTokens: 1400 },
+  'grok-4-1-fast-reasoning': { inputTokens: 22100, outputTokens: 8900 },
+  'gemini-3.1-pro-preview':  { inputTokens: 9400,  outputTokens: 3200 },
+  'gemini-3-flash-preview':  { inputTokens: 7800,  outputTokens: 2600 },
+}
+
+function ModelPricingTable({ activeModel }: { activeModel: string }) {
+  const [copied, setCopied] = useState<string | null>(null)
+
+  const handleCopy = (key: string, label: string) => {
+    navigator.clipboard.writeText(key).then(() => {
+      setCopied(key)
+      setTimeout(() => setCopied(null), 1500)
+    })
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="font-mono text-[9px] text-chrome-dark/50 tracking-widest uppercase">
+        Model Pricing ($/1M tokens)
+      </span>
+      {/* Horizontal scroll on mobile */}
+      <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <table className="w-full text-[9px] font-mono border-collapse min-w-[420px]">
+          <thead>
+            <tr className="border-b border-white/5">
+              <th className="text-left pb-1 font-orbitron text-[8px] text-chrome-dark/50 tracking-wider pr-2">MODEL</th>
+              <th className="text-right pb-1 font-orbitron text-[8px] text-chrome-dark/50 tracking-wider pr-2">$/1M IN</th>
+              <th className="text-right pb-1 font-orbitron text-[8px] text-chrome-dark/50 tracking-wider pr-2">$/1M OUT</th>
+              <th className="text-right pb-1 font-orbitron text-[8px] text-chrome-dark/50 tracking-wider pr-2">TOKENS</th>
+              <th className="text-right pb-1 font-orbitron text-[8px] text-chrome-dark/50 tracking-wider">COST</th>
+            </tr>
+          </thead>
+          <tbody>
+            {MODEL_USAGE_KEYS.map(key => {
+              const pricing = MODEL_PRICING[key]
+              const usage = SESSION_MODEL_USAGE[key] ?? { inputTokens: 0, outputTokens: 0 }
+              const cost = (usage.inputTokens / 1_000_000) * pricing.input + (usage.outputTokens / 1_000_000) * pricing.output
+              const totalTokens = usage.inputTokens + usage.outputTokens
+              const isActive = key === activeModel
+
+              return (
+                <tr
+                  key={key}
+                  className="border-b border-white/3 transition-all duration-200"
+                  style={isActive ? { backgroundColor: 'rgba(0,212,255,0.05)' } : undefined}
+                >
+                  <td className="py-1 pr-2">
+                    <button
+                      onClick={() => handleCopy(key, pricing.label)}
+                      className="text-left transition-colors hover:text-neon"
+                      style={{
+                        color: isActive ? '#00d4ff' : '#9ca3af',
+                        fontWeight: isActive ? '600' : '400',
+                        border: isActive ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent',
+                        padding: '1px 4px',
+                        borderRadius: '2px',
+                        display: 'inline-block',
+                      }}
+                      title="Click to copy model ID"
+                    >
+                      {copied === key ? '✓ Copied!' : pricing.label}
+                    </button>
+                  </td>
+                  <td className="py-1 pr-2 text-right tabular-nums text-chrome-dark">
+                    ${pricing.input.toFixed(2)}
+                  </td>
+                  <td className="py-1 pr-2 text-right tabular-nums text-chrome-dark">
+                    ${pricing.output.toFixed(2)}
+                  </td>
+                  <td className="py-1 pr-2 text-right tabular-nums text-chrome-dark">
+                    {(totalTokens / 1000).toFixed(1)}K
+                  </td>
+                  <td className="py-1 text-right tabular-nums" style={{ color: isActive ? '#00d4ff' : '#9ca3af' }}>
+                    ${cost.toFixed(4)}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   )

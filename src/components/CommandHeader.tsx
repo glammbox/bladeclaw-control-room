@@ -123,7 +123,7 @@ export default function CommandHeader() {
 
       <div className="flex items-center gap-4 px-6 py-3">
         {/* Logo + Title */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
           <div className="relative">
             <motion.div
               key={pulseKey}

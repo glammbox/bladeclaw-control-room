@@ -11,12 +11,44 @@ function getHealthColor(agent: OpenClawAgent): HealthColor {
   return 'gray'
 }
 
-const HEALTH_STYLES: Record<HealthColor, { color: string; label: string; bg: string }> = {
-  gray:  { color: '#6b7280', label: 'IDLE',    bg: 'rgba(107,114,128,0.08)' },
-  blue:  { color: '#3b82f6', label: 'ACTIVE',  bg: 'rgba(59,130,246,0.08)'  },
-  green: { color: '#22c55e', label: 'EVOLVED', bg: 'rgba(34,197,94,0.08)'   },
-  red:   { color: '#ef4444', label: 'CRITICAL', bg: 'rgba(239,68,68,0.08)'  },
+const HEALTH_STYLES: Record<HealthColor, { color: string; bg: string }> = {
+  gray:  { color: '#6b7280', bg: 'rgba(107,114,128,0.08)' },
+  blue:  { color: '#3b82f6', bg: 'rgba(59,130,246,0.08)'  },
+  green: { color: '#22c55e', bg: 'rgba(34,197,94,0.08)'   },
+  red:   { color: '#ef4444', bg: 'rgba(239,68,68,0.08)'   },
 }
+
+// ─────────────────────────────────────────────
+// Brain Growth Meter
+// ─────────────────────────────────────────────
+
+function BrainMeter({ score }: { score: number }) {
+  const level = Math.min(5, Math.floor(score / 100))
+  const pct = score % 100
+  const BRAIN_ICONS = ['🧠', '🧠', '🧠🧠', '🧠🧠', '🧠🧠🧠', '🧠🧠🧠']
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-sm leading-none" title={`Intelligence level ${level}`}>
+        {BRAIN_ICONS[level] ?? '🧠'}
+      </span>
+      <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(192,192,192,0.1)' }}>
+        <div
+          className="h-full rounded-full transition-all duration-1000"
+          style={{
+            width: pct + '%',
+            background: 'linear-gradient(90deg, rgba(0,212,255,0.6), #00d4ff)',
+          }}
+        />
+      </div>
+      <span className="text-[8px] font-mono" style={{ color: 'rgba(0,212,255,0.5)' }}>Lv{level}</span>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// Sparkline
+// ─────────────────────────────────────────────
 
 interface SparklineProps {
   data: number[]
@@ -49,7 +81,6 @@ function Sparkline({ data, color, width = 60, height = 16 }: SparklineProps) {
         strokeLinejoin="round"
         opacity={0.7}
       />
-      {/* Last point dot */}
       {pts.length > 0 && (() => {
         const last = pts[pts.length - 1].split(',')
         return (
@@ -66,6 +97,10 @@ function Sparkline({ data, color, width = 60, height = 16 }: SparklineProps) {
   )
 }
 
+// ─────────────────────────────────────────────
+// Agent Row
+// ─────────────────────────────────────────────
+
 interface AgentRowProps {
   agent: OpenClawAgent
 }
@@ -74,6 +109,10 @@ function AgentRow({ agent }: AgentRowProps) {
   const [expanded, setExpanded] = useState(false)
   const health = getHealthColor(agent)
   const style = HEALTH_STYLES[health]
+
+  // Use lessonCount as lessonsLearned, runCount as buildsCompleted
+  const lessonsLearned = agent.lessonCount ?? 0
+  const buildsCompleted = agent.runCount ?? 0
 
   return (
     <div
@@ -112,14 +151,17 @@ function AgentRow({ agent }: AgentRowProps) {
             <span className="font-orbitron text-[10px]" style={{ color: style.color }}>
               {agent.name}
             </span>
-            <span
-              className="font-orbitron text-[8px] px-1 py-0.5 rounded-sm border"
-              style={{ color: style.color, borderColor: style.color + '40', backgroundColor: style.color + '15' }}
-            >
-              {style.label}
-            </span>
           </div>
           <div className="font-mono text-[9px] text-chrome-dark/50 truncate">{agent.lastAction}</div>
+          {/* Brain meter + stats */}
+          <div className="mt-1.5 flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2">
+            <div className="flex-1 min-w-0">
+              <BrainMeter score={agent.evolutionScore} />
+            </div>
+            <div style={{ fontSize: '9px', fontFamily: 'Inter, system-ui, sans-serif', color: 'rgba(192,192,192,0.4)', whiteSpace: 'nowrap' }}>
+              {lessonsLearned} lessons · {buildsCompleted} builds
+            </div>
+          </div>
         </div>
 
         {/* Sparkline */}
@@ -166,7 +208,7 @@ function AgentRow({ agent }: AgentRowProps) {
 
           {/* Lessons */}
           {agent.lessons.length > 0 && (
-            <div className="space-y-1">
+            <div className="space-y-1 overflow-y-auto" style={{ maxHeight: '120px' }}>
               <div className="font-orbitron text-[8px] text-chrome-dark/50 tracking-wider">RECENT LESSONS</div>
               {agent.lessons.slice(0, 3).map((lesson, i) => (
                 <div
@@ -186,6 +228,10 @@ function AgentRow({ agent }: AgentRowProps) {
   )
 }
 
+// ─────────────────────────────────────────────
+// Main export
+// ─────────────────────────────────────────────
+
 export default function AgentHealthPanel() {
   const agents = getMergedAgents()
   const totalEvo = agents.reduce((sum, a) => sum + a.evolutionScore, 0)
@@ -193,7 +239,7 @@ export default function AgentHealthPanel() {
   const activeCount = agents.filter(a => a.status === 'active' || a.status === 'learning').length
 
   return (
-    <div className="w-full h-full flex flex-col gap-2">
+    <div className="w-full flex flex-col gap-2">
       {/* Header */}
       <div className="flex items-center justify-between shrink-0">
         <div className="hud-label">Agent Health</div>
@@ -206,8 +252,8 @@ export default function AgentHealthPanel() {
         </div>
       </div>
 
-      {/* Agent list */}
-      <div className="flex-1 overflow-y-auto space-y-1 scrollbar-thin min-h-0">
+      {/* Agent list — full natural height, only internal scroll if needed */}
+      <div className="space-y-1 overflow-y-auto scrollbar-thin" style={{ maxHeight: '600px' }}>
         {agents.map(agent => (
           <AgentRow key={agent.id} agent={agent} />
         ))}
@@ -215,12 +261,12 @@ export default function AgentHealthPanel() {
 
       {/* Footer legend */}
       <div className="flex items-center gap-3 pt-1 border-t border-white/5 shrink-0">
-        {(Object.entries(HEALTH_STYLES) as Array<[HealthColor, typeof HEALTH_STYLES[HealthColor]]>).map(([key, s]) => (
-          <div key={key} className="flex items-center gap-1">
+        {(Object.entries(HEALTH_STYLES) as Array<[HealthColor, typeof HEALTH_STYLES[HealthColor]]>).map(([, s]) => (
+          <div key={s.color} className="flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-            <span className="font-mono text-[8px] text-chrome-dark/50">{s.label}</span>
           </div>
         ))}
+        <span className="font-mono text-[8px] text-chrome-dark/40">🧠 = intelligence level</span>
       </div>
     </div>
   )

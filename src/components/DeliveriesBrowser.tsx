@@ -100,10 +100,8 @@ function DeliveryDrawer({ delivery, onClose }: DrawerProps) {
 
   const handleDownload = () => {
     if (!delivery || delivery.status !== 'shipped') return
-    const link = document.createElement('a')
-    link.href = '#'
-    link.download = `${delivery.project.toLowerCase().replace(/\s+/g, '-')}.zip`
-    link.click()
+    const slug = delivery.project.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    window.open(`/deliveries/${slug}-v1.zip`, '_blank')
   }
 
   return (
@@ -313,8 +311,21 @@ export default function DeliveriesBrowser() {
                   }}
                 >
                   <td className="py-2 pr-3 font-mono text-chrome group-hover:text-neon transition-colors">
-                    {d.project}
-                    <ExternalLink size={9} className="inline ml-1 opacity-0 group-hover:opacity-50 transition-opacity" />
+                    <div className="flex items-center gap-2">
+                      <span className="truncate max-w-[120px]">{d.project}</span>
+                      {d.status === 'shipped' && (() => {
+                        const slug = d.project.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+                        const url = PROJECT_URLS[d.project] || PROJECT_URLS[slug]
+                        return url ? (
+                          <button
+                            onClick={e => { e.stopPropagation(); window.open(url, '_blank') }}
+                            className="text-[9px] font-mono text-neon border border-neon/20 px-1.5 py-0.5 rounded-sm hover:bg-neon/10 transition-all shrink-0"
+                          >
+                            OPEN →
+                          </button>
+                        ) : null
+                      })()}
+                    </div>
                   </td>
                   <td className="py-2 pr-3">
                     <CIScoreBar score={d.ciScore} />

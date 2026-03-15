@@ -6,6 +6,19 @@ import SoulAgentPanel, { type AgentData, type AgentStatus } from './SoulAgentPan
 // Mock data
 // ─────────────────────────────────────────────
 
+const AGENT_MODELS: Record<string, string> = {
+  'pulse': 'Grok Fast',
+  'planner': 'GPT-5.4',
+  'research': 'GPT-5.4',
+  'market': 'Grok Fast',
+  'content': 'Claude Sonnet',
+  'media': 'Gemini Flash',
+  'builder': 'Claude Sonnet',
+  'validator': 'GPT-5.4',
+  'optimizer': 'Gemini Pro',
+  'director': 'Claude Sonnet',
+}
+
 const AGENT_TEMPLATES: Omit<AgentData, 'status' | 'queueDepth' | 'latencyMs' | 'lastAction' | 'tokensBurned' | 'progressPct'>[] = [
   { id: 'director', name: 'Director', emoji: '🎯', description: 'Orchestrates DAG. Assigns missions.' },
   { id: 'pulse', name: 'Pulse', emoji: '⚡', description: 'Viability gate. Scores every prompt.' },
@@ -161,11 +174,15 @@ export default function AgentMatrix({ className = '' }: AgentMatrixProps) {
         {agents.map((agent, i) => (
           <motion.div
             key={agent.id}
+            className="min-w-0"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.04, duration: 0.3 }}
           >
-            <SoulAgentPanel agent={agent} />
+            <SoulAgentPanel
+              agent={agent}
+              modelLabel={AGENT_MODELS[agent.id?.toLowerCase()] || 'Claude Sonnet'}
+            />
           </motion.div>
         ))}
       </motion.div>

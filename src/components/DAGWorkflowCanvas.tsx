@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 
+const NODE_W = 160
+const NODE_H = 60
+const GAP = 35
+const CANVAS_W = 200
+const STAGES = ['pulse','planner','research','market','content','media','builder','validator','optimizer','package']
+const CANVAS_H = STAGES.length * (NODE_H + GAP)
+
 const STAGE_DESCRIPTIONS: Record<string, string> = {
   pulse: 'Checking viability',
   planner: 'Generating blueprint',
@@ -13,79 +20,49 @@ const STAGE_DESCRIPTIONS: Record<string, string> = {
   package: 'Zipping deliverable',
 }
 
+const STAGE_TASKS: Record<string, string[]> = {
+  pulse: ['Scanning viability...', 'Scoring 4 axes...', 'Refining prompt...'],
+  planner: ['Checking templates...', 'Generating blueprint...', 'Writing batchPlan...'],
+  research: ['Querying Perplexity...', 'Checking npm registry...', 'Caching results...'],
+  market: ['Parsing ICP signals...', 'Competitor analysis...', 'Writing positioning doc...'],
+  content: ['Reading brand voice...', 'Writing hero copy...', 'Generating CTAs...'],
+  media: ['Searching Pexels...', 'Generating assets...', 'Building manifest...'],
+  builder: ['Writing components...', 'Running tsc --noEmit...', 'Verifying assets...'],
+  validator: ['Running ESLint...', 'Checking TypeScript...', 'Computing CI score...'],
+  optimizer: ['Measuring LCP...', 'Tree-shaking bundle...', 'Applying patches...'],
+  package: ['Deploying to Vercel...', 'Creating ZIP...', 'Writing manifest...'],
+}
+
 type NodeStatus = 'completed' | 'active' | 'pending'
 
 interface DAGNode {
   id: string
-  label: string
-  x: number
-  y: number
   status: NodeStatus
 }
 
-interface DAGEdge {
-  from: string
-  to: string
-}
-
-// Layout: linear then parallel branches then converge
-const INITIAL_NODES: DAGNode[] = [
-  { id: 'pulse',     label: 'Pulse',     x: 60,  y: 100, status: 'completed' },
-  { id: 'planner',   label: 'Planner',   x: 160, y: 100, status: 'completed' },
-  { id: 'research',  label: 'Research',  x: 280, y: 60,  status: 'active'    },
-  { id: 'market',    label: 'Market',    x: 280, y: 140, status: 'pending'   },
-  { id: 'content',   label: 'Content',   x: 400, y: 60,  status: 'pending'   },
-  { id: 'media',     label: 'Media',     x: 400, y: 140, status: 'pending'   },
-  { id: 'builder',   label: 'Builder',   x: 510, y: 100, status: 'pending'   },
-  { id: 'validator', label: 'Validator', x: 610, y: 100, status: 'pending'   },
-  { id: 'optimizer', label: 'Optimizer', x: 710, y: 100, status: 'pending'   },
-  { id: 'package',   label: 'Package',   x: 820, y: 100, status: 'pending'   },
-]
-
-const EDGES: DAGEdge[] = [
-  { from: 'pulse',    to: 'planner'   },
-  { from: 'planner',  to: 'research'  },
-  { from: 'planner',  to: 'market'    },
-  { from: 'research', to: 'content'   },
-  { from: 'market',   to: 'content'   },
-  { from: 'market',   to: 'media'     },
-  { from: 'research', to: 'media'     },
-  { from: 'content',  to: 'builder'   },
-  { from: 'media',    to: 'builder'   },
-  { from: 'builder',  to: 'validator' },
-  { from: 'validator',to: 'optimizer' },
-  { from: 'optimizer',to: 'package'   },
-]
-
-// Progression sequence: which node becomes active next
-const PROGRESSION_SEQUENCE = [
-  'pulse', 'planner', 'research', 'market', 'content', 'media',
-  'builder', 'validator', 'optimizer', 'package',
-]
+const PROGRESSION_SEQUENCE = STAGES
 
 function nodeColor(status: NodeStatus): string {
   if (status === 'completed') return '#22c55e'
-  if (status === 'active')    return '#00d4ff'
+  if (status === 'active') return '#00d4ff'
   return '#374151'
 }
 
 function nodeBg(status: NodeStatus): string {
   if (status === 'completed') return '#052210'
-  if (status === 'active')    return '#001a24'
+  if (status === 'active') return '#001a24'
   return '#0c0c0c'
 }
 
-function edgeColor(fromStatus: NodeStatus, toStatus: NodeStatus): string {
-  if (fromStatus === 'completed' && toStatus === 'completed') return '#22c55e'
-  if (fromStatus === 'completed' && toStatus === 'active')    return '#00d4ff'
-  if (fromStatus === 'active')                                return '#00d4ff88'
-  return '#1f2937'
-}
+const initialNodes: DAGNode[] = STAGES.map((id, i) => ({
+  id,
+  status: i === 0 ? 'active' : 'pending',
+}))
 
 export default function DAGWorkflowCanvas() {
-  const [nodes, setNodes] = useState<DAGNode[]>(INITIAL_NODES)
+  const [nodes, setNodes] = useState<DAGNode[]>(initialNodes)
   const [tick, setTick] = useState(0)
-  const animRef = useRef(0)
+  const [activeTaskIndices, setActiveTaskIndices] = useState<Record<string, number>>({})
 
   // Advance one node every 2.5s for demo
   useEffect(() => {
@@ -95,20 +72,33 @@ export default function DAGWorkflowCanvas() {
     return () => clearInterval(interval)
   }, [])
 
+  // Cycle active task text every 2s
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setActiveTaskIndices(prev => {
+        const next = { ...prev }
+        nodes.forEach(n => {
+          if (n.status === 'active') {
+            const tasks = STAGE_TASKS[n.id] ?? []
+            next[n.id] = ((prev[n.id] ?? 0) + 1) % tasks.length
+          }
+        })
+        return next
+      })
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [nodes])
+
   useEffect(() => {
     setNodes(prev => {
       const updated = prev.map(n => ({ ...n }))
-
-      // Find the last active node index in sequence
       let activeIdx = -1
       for (let i = 0; i < PROGRESSION_SEQUENCE.length; i++) {
         const id = PROGRESSION_SEQUENCE[i]
         const n = updated.find(x => x.id === id)
         if (n?.status === 'active') { activeIdx = i; break }
       }
-
       if (activeIdx === -1) {
-        // No active node — find first pending
         const firstPending = PROGRESSION_SEQUENCE.findIndex(id =>
           updated.find(x => x.id === id)?.status === 'pending'
         )
@@ -117,160 +107,159 @@ export default function DAGWorkflowCanvas() {
           if (node) node.status = 'active'
         }
       } else {
-        // Complete current active, activate next pending
         const activeNode = updated.find(x => x.id === PROGRESSION_SEQUENCE[activeIdx])
         if (activeNode) activeNode.status = 'completed'
-
         const nextId = PROGRESSION_SEQUENCE[activeIdx + 1]
         if (nextId) {
           const nextNode = updated.find(x => x.id === nextId)
           if (nextNode && nextNode.status === 'pending') nextNode.status = 'active'
         }
       }
-
       return updated
     })
   }, [tick])
 
-  // Store animation frame ref
-  useEffect(() => {
-    animRef.current = Date.now()
-  })
-
-  const nodeMap = new Map(nodes.map(n => [n.id, n]))
+  const cx = CANVAS_W / 2
 
   return (
-    <div className="w-full h-full flex flex-col">
+    <div className="w-full flex flex-col">
       <div className="hud-label mb-2">DAG Workflow</div>
-      <div className="flex-1 relative overflow-hidden rounded-sm">
+      <div className="relative">
         <svg
           width="100%"
-          height="100%"
-          viewBox="0 0 900 200"
-          preserveAspectRatio="xMidYMid meet"
-          className="w-full h-full"
+          viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
+          preserveAspectRatio="xMidYMin meet"
+          style={{ display: 'block' }}
         >
           <defs>
-            {/* Arrow markers for each edge color */}
-            <marker id="arrow-active" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <marker id="arrow-dag-active" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
               <polygon points="0 0, 8 3, 0 6" fill="#00d4ff" />
             </marker>
-            <marker id="arrow-done" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <marker id="arrow-dag-done" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
               <polygon points="0 0, 8 3, 0 6" fill="#22c55e" />
             </marker>
-            <marker id="arrow-pending" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <marker id="arrow-dag-pending" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
               <polygon points="0 0, 8 3, 0 6" fill="#1f2937" />
             </marker>
-
-            {/* Glow filter for active nodes */}
-            <filter id="glow-blue" x="-50%" y="-50%" width="200%" height="200%">
+            <filter id="dag-glow-blue" x="-50%" y="-50%" width="200%" height="200%">
               <feGaussianBlur stdDeviation="3" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
+              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
             </filter>
-            <filter id="glow-green" x="-50%" y="-50%" width="200%" height="200%">
+            <filter id="dag-glow-green" x="-50%" y="-50%" width="200%" height="200%">
               <feGaussianBlur stdDeviation="2" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
+              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
             </filter>
           </defs>
 
-          {/* Edges */}
-          {EDGES.map((edge, i) => {
-            const from = nodeMap.get(edge.from)
-            const to   = nodeMap.get(edge.to)
-            if (!from || !to) return null
-
-            const color = edgeColor(from.status, to.status)
+          {/* Arrows between nodes */}
+          {nodes.map((node, i) => {
+            if (i >= nodes.length - 1) return null
+            const nextNode = nodes[i + 1]
+            const y = i * (NODE_H + GAP)
+            const arrowFrom = y + NODE_H
+            const arrowTo = y + NODE_H + GAP - 6
+            const color =
+              node.status === 'completed' && nextNode.status === 'completed' ? '#22c55e'
+              : node.status === 'active' || nextNode.status === 'active' ? '#00d4ff88'
+              : '#1f2937'
             const markerId =
-              from.status === 'completed' && to.status === 'completed' ? 'arrow-done'
-              : (from.status === 'active' || to.status === 'active')    ? 'arrow-active'
-              : 'arrow-pending'
-
-            // Bezier curve
-            const dx = to.x - from.x
-            const cx1 = from.x + dx * 0.4
-            const cy1 = from.y
-            const cx2 = to.x - dx * 0.4
-            const cy2 = to.y
-
+              node.status === 'completed' && nextNode.status === 'completed' ? 'arrow-dag-done'
+              : node.status === 'active' ? 'arrow-dag-active'
+              : 'arrow-dag-pending'
             return (
-              <path
-                key={i}
-                d={`M ${from.x + 30} ${from.y} C ${cx1 + 30} ${cy1} ${cx2 - 30} ${cy2} ${to.x - 30} ${to.y}`}
+              <line
+                key={node.id + '-arrow'}
+                x1={cx} y1={arrowFrom}
+                x2={cx} y2={arrowTo}
                 stroke={color}
                 strokeWidth="1.5"
-                fill="none"
                 markerEnd={`url(#${markerId})`}
-                opacity={0.8}
               />
             )
           })}
 
           {/* Nodes */}
-          {nodes.map(node => {
+          {nodes.map((node, i) => {
             const isActive = node.status === 'active'
             const color = nodeColor(node.status)
             const bg = nodeBg(node.status)
-            const filterId = isActive ? 'glow-blue' : node.status === 'completed' ? 'glow-green' : undefined
+            const y = i * (NODE_H + GAP)
+            const nodeX = cx - NODE_W / 2
+            const filterId = isActive ? 'dag-glow-blue' : node.status === 'completed' ? 'dag-glow-green' : undefined
+            const tasks = STAGE_TASKS[node.id] ?? []
+            const taskText = isActive ? tasks[activeTaskIndices[node.id] ?? 0] ?? '' : ''
+            const label = node.id.charAt(0).toUpperCase() + node.id.slice(1)
+            const desc = STAGE_DESCRIPTIONS[node.id] ?? ''
 
             return (
               <g key={node.id} filter={filterId ? `url(#${filterId})` : undefined}>
                 {/* Pulse ring for active */}
                 {isActive && (
-                  <circle cx={node.x} cy={node.y} r={28} fill="none" stroke="#00d4ff" strokeWidth="1" opacity="0.3">
-                    <animate attributeName="r" values="28;36;28" dur="1.5s" repeatCount="indefinite" />
-                    <animate attributeName="opacity" values="0.3;0;0.3" dur="1.5s" repeatCount="indefinite" />
-                  </circle>
+                  <rect
+                    x={nodeX - 4} y={y - 4}
+                    width={NODE_W + 8} height={NODE_H + 8}
+                    rx={6} fill="none" stroke="#00d4ff" strokeWidth="1" opacity="0.25"
+                  >
+                    <animate attributeName="opacity" values="0.25;0.05;0.25" dur="1.5s" repeatCount="indefinite" />
+                  </rect>
                 )}
 
                 {/* Node box */}
                 <rect
-                  x={node.x - 30}
-                  y={node.y - 16}
-                  width={60}
-                  height={32}
+                  x={nodeX} y={y}
+                  width={NODE_W} height={NODE_H}
                   rx={4}
                   fill={bg}
                   stroke={color}
                   strokeWidth={isActive ? 1.5 : 1}
                 />
 
-                {/* Label */}
+                {/* Stage name */}
                 <text
-                  x={node.x}
-                  y={node.y + 1}
+                  x={cx} y={y + 18}
                   textAnchor="middle"
-                  fontSize="9"
+                  fontSize="11"
                   fontFamily="'Orbitron', monospace"
                   fill={color}
                   fontWeight={isActive ? 'bold' : 'normal'}
                 >
-                  {node.label}
+                  {label.toUpperCase()}
                 </text>
-                {/* Description */}
+
+                {/* Description or task text */}
                 <text
-                  x={node.x}
-                  y={node.y + 11}
+                  x={cx} y={y + 33}
                   textAnchor="middle"
-                  fontSize="6"
+                  fontSize="8"
                   fontFamily="Inter, system-ui, sans-serif"
-                  fill="rgba(192,192,192,0.45)"
+                  fill={isActive ? 'rgba(0,212,255,0.7)' : 'rgba(192,192,192,0.45)'}
                 >
-                  {STAGE_DESCRIPTIONS[node.id?.toLowerCase()] || ''}
+                  {isActive && taskText ? taskText : desc}
                 </text>
 
                 {/* Status dot */}
                 <circle
-                  cx={node.x + 22}
-                  cy={node.y - 10}
-                  r={3}
+                  cx={nodeX + NODE_W - 10}
+                  cy={y + 10}
+                  r={4}
                   fill={color}
-                />
+                >
+                  {isActive && (
+                    <animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite" />
+                  )}
+                </circle>
+
+                {/* Completed checkmark */}
+                {node.status === 'completed' && (
+                  <text
+                    x={nodeX + NODE_W - 10} y={y + 14}
+                    textAnchor="middle"
+                    fontSize="8"
+                    fill="#22c55e"
+                  >
+                    ✓
+                  </text>
+                )}
               </g>
             )
           })}
