@@ -23,7 +23,7 @@ import MediaHub from '../components/MediaHub'
 import ModelSpawner from '../components/ModelSpawner'
 import SettingsPanel from '../components/SettingsPanel'
 import AgentHealthPanel from '../components/AgentHealthPanel'
-import ChatBar from '../components/ChatBar'
+import ChatSidePanel from '../components/ChatSidePanel'
 
 // ─────────────────────────────────────────────
 // WS mode badge
@@ -148,8 +148,7 @@ export default function Dashboard() {
       <SettingsToggle onClick={() => setSettingsOpen(true)} />
       <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
-      {/* Fixed chat bar at bottom */}
-      <ChatBar />
+      {/* Chat side panel handled in grid below */}
 
       {/* Main dashboard page */}
       <motion.div
@@ -210,6 +209,11 @@ export default function Dashboard() {
           {/* AgentHealthPanel — token cost view */}
           <div className="agent-health-cell">
             <TokenCostTracker />
+          </div>
+
+          {/* Chat side panel — right column, full height */}
+          <div className="chat-panel-cell">
+            <ChatSidePanel />
           </div>
         </div>
       </motion.div>

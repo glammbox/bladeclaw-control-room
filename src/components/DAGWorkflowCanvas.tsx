@@ -1,36 +1,36 @@
 import { useEffect, useRef, useState } from 'react'
 
-const NODE_W = 140
-const NODE_H = 52
-const GAP = 28
-const CANVAS_W = 200
+const NODE_W = 80   // smaller width per node
+const NODE_H = 48   // compact height
+const GAP = 20      // gap between nodes
 const STAGES = ['pulse','planner','research','market','content','media','builder','validator','optimizer','package']
-const CANVAS_H = STAGES.length * (NODE_H + GAP)
+const TOTAL_W = STAGES.length * (NODE_W + GAP) - GAP + 20  // total canvas width
+const CANVAS_H = NODE_H + 60  // single row + padding
 
 const STAGE_DESCRIPTIONS: Record<string, string> = {
-  pulse: 'Checking viability',
-  planner: 'Generating blueprint',
-  research: 'Gathering intel',
-  market: 'Analyzing competitors',
-  content: 'Writing copy',
-  media: 'Creating assets',
-  builder: 'Writing code',
-  validator: 'Running quality checks',
-  optimizer: 'Polishing performance',
-  package: 'Zipping deliverable',
+  pulse: 'Viability',
+  planner: 'Blueprint',
+  research: 'Intel',
+  market: 'Competitors',
+  content: 'Copy',
+  media: 'Assets',
+  builder: 'Code',
+  validator: 'QA',
+  optimizer: 'Polish',
+  package: 'ZIP',
 }
 
 const STAGE_TASKS: Record<string, string[]> = {
-  pulse: ['Scanning viability...', 'Scoring 4 axes...', 'Refining prompt...'],
-  planner: ['Checking templates...', 'Generating blueprint...', 'Writing batchPlan...'],
-  research: ['Querying Perplexity...', 'Checking npm registry...', 'Caching results...'],
-  market: ['Parsing ICP signals...', 'Competitor analysis...', 'Writing positioning doc...'],
-  content: ['Reading brand voice...', 'Writing hero copy...', 'Generating CTAs...'],
-  media: ['Searching Pexels...', 'Generating assets...', 'Building manifest...'],
-  builder: ['Writing components...', 'Running tsc --noEmit...', 'Verifying assets...'],
-  validator: ['Running ESLint...', 'Checking TypeScript...', 'Computing CI score...'],
-  optimizer: ['Measuring LCP...', 'Tree-shaking bundle...', 'Applying patches...'],
-  package: ['Deploying to Vercel...', 'Creating ZIP...', 'Writing manifest...'],
+  pulse: ['Scanning...', 'Scoring...', 'Refining...'],
+  planner: ['Templates...', 'Blueprint...', 'batchPlan...'],
+  research: ['Perplexity...', 'npm registry...', 'Caching...'],
+  market: ['ICP signals...', 'Competitors...', 'Positioning...'],
+  content: ['Brand voice...', 'Hero copy...', 'CTAs...'],
+  media: ['Pexels...', 'Generating...', 'Manifest...'],
+  builder: ['Components...', 'tsc check...', 'Assets...'],
+  validator: ['ESLint...', 'TypeScript...', 'CI score...'],
+  optimizer: ['LCP...', 'Bundle...', 'Patches...'],
+  package: ['Vercel...', 'ZIP...', 'Manifest...'],
 }
 
 type NodeStatus = 'completed' | 'active' | 'pending'
@@ -119,60 +119,59 @@ export default function DAGWorkflowCanvas() {
     })
   }, [tick])
 
-  const cx = CANVAS_W / 2
-
   return (
     <div className="w-full flex flex-col">
       <div className="hud-label mb-2">DAG Workflow</div>
-      <div className="relative">
+      <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
         <svg
-          width="100%"
-          viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
-          preserveAspectRatio="xMidYMin meet"
+          width={TOTAL_W}
+          height={CANVAS_H}
+          viewBox={`0 0 ${TOTAL_W} ${CANVAS_H}`}
           style={{ display: 'block' }}
         >
           <defs>
-            <marker id="arrow-dag-active" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-              <polygon points="0 0, 8 3, 0 6" fill="#00d4ff" />
+            <marker id="dag-arrow" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto">
+              <polygon points="0 0, 6 2.5, 0 5" fill="#374151" />
             </marker>
-            <marker id="arrow-dag-done" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-              <polygon points="0 0, 8 3, 0 6" fill="#22c55e" />
+            <marker id="dag-arrow-active" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto">
+              <polygon points="0 0, 6 2.5, 0 5" fill="#00d4ff88" />
             </marker>
-            <marker id="arrow-dag-pending" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-              <polygon points="0 0, 8 3, 0 6" fill="#1f2937" />
+            <marker id="dag-arrow-done" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto">
+              <polygon points="0 0, 6 2.5, 0 5" fill="#22c55e" />
             </marker>
             <filter id="dag-glow-blue" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feGaussianBlur stdDeviation="2" result="blur" />
               <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
             </filter>
             <filter id="dag-glow-green" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="2" result="blur" />
+              <feGaussianBlur stdDeviation="1.5" result="blur" />
               <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
             </filter>
           </defs>
 
-          {/* Arrows between nodes */}
+          {/* Arrows between nodes (horizontal) */}
           {nodes.map((node, i) => {
             if (i >= nodes.length - 1) return null
             const nextNode = nodes[i + 1]
-            const y = i * (NODE_H + GAP)
-            const arrowFrom = y + NODE_H
-            const arrowTo = y + NODE_H + GAP - 6
-            const color =
+            const x = 10 + i * (NODE_W + GAP)
+            const y = 20
+            const arrowColor =
               node.status === 'completed' && nextNode.status === 'completed' ? '#22c55e'
               : node.status === 'active' || nextNode.status === 'active' ? '#00d4ff88'
               : '#1f2937'
             const markerId =
-              node.status === 'completed' && nextNode.status === 'completed' ? 'arrow-dag-done'
-              : node.status === 'active' ? 'arrow-dag-active'
-              : 'arrow-dag-pending'
+              node.status === 'completed' && nextNode.status === 'completed' ? 'dag-arrow-done'
+              : node.status === 'active' ? 'dag-arrow-active'
+              : 'dag-arrow'
             return (
               <line
                 key={node.id + '-arrow'}
-                x1={cx} y1={arrowFrom}
-                x2={cx} y2={arrowTo}
-                stroke={color}
-                strokeWidth="1.5"
+                x1={x + NODE_W}
+                y1={y + NODE_H / 2}
+                x2={x + NODE_W + GAP - 4}
+                y2={y + NODE_H / 2}
+                stroke={arrowColor}
+                strokeWidth="1"
                 markerEnd={`url(#${markerId})`}
               />
             )
@@ -183,8 +182,8 @@ export default function DAGWorkflowCanvas() {
             const isActive = node.status === 'active'
             const color = nodeColor(node.status)
             const bg = nodeBg(node.status)
-            const y = i * (NODE_H + GAP)
-            const nodeX = cx - NODE_W / 2
+            const x = 10 + i * (NODE_W + GAP)
+            const y = 20
             const filterId = isActive ? 'dag-glow-blue' : node.status === 'completed' ? 'dag-glow-green' : undefined
             const tasks = STAGE_TASKS[node.id] ?? []
             const taskText = isActive ? tasks[activeTaskIndices[node.id] ?? 0] ?? '' : ''
@@ -196,9 +195,9 @@ export default function DAGWorkflowCanvas() {
                 {/* Pulse ring for active */}
                 {isActive && (
                   <rect
-                    x={nodeX - 4} y={y - 4}
-                    width={NODE_W + 8} height={NODE_H + 8}
-                    rx={6} fill="none" stroke="#00d4ff" strokeWidth="1" opacity="0.25"
+                    x={x - 3} y={y - 3}
+                    width={NODE_W + 6} height={NODE_H + 6}
+                    rx={5} fill="none" stroke="#00d4ff" strokeWidth="1" opacity="0.25"
                   >
                     <animate attributeName="opacity" values="0.25;0.05;0.25" dur="1.5s" repeatCount="indefinite" />
                   </rect>
@@ -206,9 +205,9 @@ export default function DAGWorkflowCanvas() {
 
                 {/* Node box */}
                 <rect
-                  x={nodeX} y={y}
+                  x={x} y={y}
                   width={NODE_W} height={NODE_H}
-                  rx={4}
+                  rx={3}
                   fill={bg}
                   stroke={color}
                   strokeWidth={isActive ? 1.5 : 1}
@@ -216,9 +215,9 @@ export default function DAGWorkflowCanvas() {
 
                 {/* Stage name */}
                 <text
-                  x={cx} y={y + 18}
+                  x={x + NODE_W / 2} y={y + 16}
                   textAnchor="middle"
-                  fontSize="11"
+                  fontSize="8"
                   fontFamily="'Orbitron', monospace"
                   fill={color}
                   fontWeight={isActive ? 'bold' : 'normal'}
@@ -228,9 +227,9 @@ export default function DAGWorkflowCanvas() {
 
                 {/* Description or task text */}
                 <text
-                  x={cx} y={y + 33}
+                  x={x + NODE_W / 2} y={y + 28}
                   textAnchor="middle"
-                  fontSize="8"
+                  fontSize="7"
                   fontFamily="Inter, system-ui, sans-serif"
                   fill={isActive ? 'rgba(0,212,255,0.7)' : 'rgba(192,192,192,0.45)'}
                 >
@@ -239,9 +238,9 @@ export default function DAGWorkflowCanvas() {
 
                 {/* Status dot */}
                 <circle
-                  cx={nodeX + NODE_W - 10}
-                  cy={y + 10}
-                  r={4}
+                  cx={x + NODE_W - 8}
+                  cy={y + 8}
+                  r={3.5}
                   fill={color}
                 >
                   {isActive && (
@@ -252,9 +251,9 @@ export default function DAGWorkflowCanvas() {
                 {/* Completed checkmark */}
                 {node.status === 'completed' && (
                   <text
-                    x={nodeX + NODE_W - 10} y={y + 14}
+                    x={x + NODE_W - 8} y={y + 12}
                     textAnchor="middle"
-                    fontSize="8"
+                    fontSize="7"
                     fill="#22c55e"
                   >
                     ✓
