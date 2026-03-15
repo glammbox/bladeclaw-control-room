@@ -158,7 +158,7 @@ export default function Dashboard() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -8 }}
         transition={{ duration: 0.3, ease: 'easeInOut' }}
-        className="w-full flex flex-col gap-2 p-2"
+        className="w-full flex flex-col gap-2 p-2 pb-16"
       >
         {/* ── Command Header (full width) ── */}
         <div className="shrink-0">
@@ -171,13 +171,18 @@ export default function Dashboard() {
         */}
         <div className="grid gap-2 dashboard-grid">
 
+          {/* Arc Reactor cell — AgentHealthPanel (overview) */}
+          <div className="arc-reactor-cell">
+            <AgentHealthPanel />
+          </div>
+
           {/* AgentMatrix */}
           <div className="agent-matrix-cell">
             <AgentMatrix className="h-full" />
           </div>
 
-          {/* MediaHub — spans 2 rows on desktop */}
-          <div className="media-hub-cell">
+          {/* Intel Feed — MediaHub (spans 2 rows on desktop) */}
+          <div className="intel-feed-cell">
             <MediaHub />
           </div>
 
@@ -201,9 +206,9 @@ export default function Dashboard() {
             <ModelSpawner />
           </div>
 
-          {/* AgentHealthPanel */}
+          {/* AgentHealthPanel — token cost view */}
           <div className="agent-health-cell">
-            <AgentHealthPanel />
+            <TokenCostTracker className="h-full" />
           </div>
         </div>
       </motion.div>

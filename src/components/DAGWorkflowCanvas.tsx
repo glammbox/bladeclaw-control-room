@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 
-const NODE_W = 160
-const NODE_H = 60
-const GAP = 35
+const NODE_W = 140
+const NODE_H = 52
+const GAP = 28
 const CANVAS_W = 200
 const STAGES = ['pulse','planner','research','market','content','media','builder','validator','optimizer','package']
 const CANVAS_H = STAGES.length * (NODE_H + GAP)
