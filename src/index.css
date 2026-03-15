@@ -19,6 +19,9 @@
   html {
     overflow-x: hidden;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    height: auto;
   }
 
   body {
@@ -30,12 +33,16 @@
     font-family: 'Inter', system-ui, sans-serif;
     overflow-x: hidden;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
     max-width: 100vw;
+    height: auto;
   }
 
   #root {
     overflow-x: hidden;
     min-height: 100vh;
+    touch-action: pan-y;
   }
 
   /* HUD scrollbar — hidden on main shell, styled for panels */
