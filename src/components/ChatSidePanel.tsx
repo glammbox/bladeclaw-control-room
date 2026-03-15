@@ -14,10 +14,13 @@ export default function ChatSidePanel() {
     { id: '0', role: 'director', text: 'Director online. Ready.', ts: new Date().toLocaleTimeString() }
   ])
   const inputRef = useRef<HTMLInputElement>(null)
+  const messagesRef = useRef<HTMLDivElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (messagesRef.current) {
+      messagesRef.current.scrollTop = messagesRef.current.scrollHeight
+    }
   }, [messages])
 
   useEffect(() => {
@@ -50,7 +53,7 @@ export default function ChatSidePanel() {
         <span style={{width:'6px',height:'6px',borderRadius:'50%',background:'#22c55e',marginLeft:'auto',animation:'pulse 2s infinite'}} />
       </div>
       {/* Messages */}
-      <div style={{flex:1, overflowY:'auto', padding:'8px', display:'flex', flexDirection:'column', gap:'6px'}}>
+      <div ref={messagesRef} style={{flex:1, overflowY:'auto', padding:'8px', display:'flex', flexDirection:'column', gap:'6px'}}>
         {messages.map(msg => (
           <div key={msg.id} style={msg.role === 'director' ? {
             alignSelf: 'flex-start',
