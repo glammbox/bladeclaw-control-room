@@ -131,7 +131,7 @@ export default function ChatBar() {
           onKeyDown={e => { if (e.key === 'Enter') handleSend(); if (e.key === 'Escape') setExpanded(false) }}
           onFocus={() => setExpanded(true)}
           placeholder="Message Director... (press / to open)"
-          className="flex-1 bg-transparent text-chrome text-base sm:text-sm outline-none"
+          className="chatbar-input flex-1 bg-transparent text-chrome text-base sm:text-sm outline-none"
           style={{ fontFamily: 'Inter, system-ui, sans-serif', color: '#c0c0c0', fontSize: '16px' }}
         />
         {messages.length > 1 && (
