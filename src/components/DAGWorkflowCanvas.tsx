@@ -195,7 +195,7 @@ export default function DAGWorkflowCanvas() {
                   width={NODE_W}
                   height={NODE_H}
                   rx={3}
-                  fill="rgba(15,22,41,0.9)"
+                  fill="rgba(8,8,16,0.95)"
                   stroke={getNodeStroke(node.status)}
                   strokeWidth={isActive ? 1.5 : 1}
                   filter={isActive ? 'url(#node-glow)' : undefined}

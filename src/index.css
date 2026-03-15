@@ -6,10 +6,10 @@
 
 @layer base {
   :root {
-    --bg-deepest: #050914;
-    --bg-base: #0a0e1a;
-    --bg-panel: #0f1629;
-    --bg-elevated: #162040;
+    --bg-deepest: #050507;
+    --bg-base: #080810;
+    --bg-panel: #0d0d18;
+    --bg-elevated: #121224;
     --neon: #00d4ff;
     --neon-deep: #0066ff;
     --reactor: #7c3aed;
@@ -34,11 +34,11 @@
   body {
     margin: 0;
     padding: 0;
-    background: var(--bg-deepest);
+    background: #050507;
     background-image: 
-      radial-gradient(ellipse at 20% 50%, rgba(0,102,255,0.08) 0%, transparent 60%),
-      radial-gradient(ellipse at 80% 20%, rgba(0,212,255,0.06) 0%, transparent 50%),
-      radial-gradient(ellipse at 50% 80%, rgba(124,58,237,0.05) 0%, transparent 50%);
+      radial-gradient(ellipse at 20% 50%, rgba(0,102,255,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(0,212,255,0.03) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 80%, rgba(124,58,237,0.03) 0%, transparent 50%);
     color: var(--chrome-bright);
     font-family: 'Inter', system-ui, sans-serif;
     overflow-x: hidden;
@@ -67,7 +67,7 @@
 @layer components {
   /* Panel base */
   .hud-panel {
-    background: rgba(15,22,41,0.85);
+    background: rgba(8,8,16,0.92);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(0,212,255,0.1);
