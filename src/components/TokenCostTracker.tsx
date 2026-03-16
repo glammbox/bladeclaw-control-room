@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { invokeGatewayTool } from '../lib/gatewayApi'
+import { getSessions } from '../lib/gatewayApi'
 
 const MODEL_PRICES = [
   { model: 'claude-sonnet-4-6', provider: 'Anthropic', input: 3.00, output: 15.00 },
@@ -220,39 +220,10 @@ export default function TokenCostTracker({ className = '' }: TokenCostTrackerPro
 
   useEffect(() => {
     const poll = async () => {
-      const result = await invokeGatewayTool('sessions_list', { limit: 20 }) as { sessions?: GatewaySession[] } | null
-      const sessions = result?.sessions ?? []
-      const totalTokens = sessions.reduce((sum: number, s) => sum + (s.totalTokens ?? 0), 0)
+      const sessions = await getSessions()
+      const totalTokens = sessions.reduce((sum: number, s: any) => sum + (s.totalTokens ?? 0), 0)
       const totalCost = totalTokens * 0.000009
-
-      const now = Date.now()
-      const prev = previousTotals.current
-      const elapsedMin = Math.max((now - prev.at) / 60000, 1 / 60)
-      const burnRatePerMin = Math.max(0, Math.round((totalTokens - prev.totalTokens) / elapsedMin))
-
-      const agents = sessions.map((s, i) => {
-        const id = s.key ?? `session-${i}`
-        const parts = (s.key ?? '').split(':')
-        const keyName = parts[2] || parts[1] || s.displayName || id
-        const name = keyName.charAt(0).toUpperCase() + keyName.slice(1)
-        const tokens = s.totalTokens ?? 0
-        return {
-          id,
-          name,
-          emoji: '•',
-          tokens,
-          cost: tokens * 0.000009,
-          color: AGENT_COLORS[i % AGENT_COLORS.length],
-        }
-      })
-
-      if (totalCost / BUDGET_CAP > 0.85 && !thresholdWarning) {
-        setThresholdWarning(true)
-        setTimeout(() => setThresholdWarning(false), 3000)
-      }
-
-      setLiveData({ totalTokens, totalCost, sessions, burnRatePerMin, agents })
-      previousTotals.current = { totalCost, totalTokens, burnRatePerMin, at: now }
+      setLiveData({ totalTokens, totalCost, sessions })
     }
 
     poll()

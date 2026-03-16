@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Download, Search, CheckCircle, Clock, AlertCircle, XCircle, X, ExternalLink, type LucideIcon } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
+import { getBuilds } from '../lib/gatewayApi'
 
 const PROJECT_URLS: Record<string, string> = {
   "Dave's Harley Shop": 'https://daves-harley-shop.vercel.app',
@@ -245,33 +246,8 @@ export default function DeliveriesBrowser() {
 
   useEffect(() => {
     const load = async () => {
-      try {
-        const res = await fetch('http://localhost:18789/tools/invoke', {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer e4ccba5fa1bcc9afb2f43eff40ba9932b1e9ed91589f0d2d', 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tool: 'read', args: { path: '/home/austi/.openclaw/workspace/memory/builds-index.md' }, sessionKey: 'main' })
-        })
-        const data = await res.json()
-        // The read tool returns content as text in result.content[0].text
-        const text = data?.result?.content?.[0]?.text ?? data?.result?.details ?? ''
-        const lines = (typeof text === 'string' ? text : '').split('\n')
-          .filter((l: string) => l.startsWith('|') && !l.includes('---') && !l.includes('Date') && !l.includes('Project'))
-        const parsed = lines.map((line: string, i: number) => {
-          const cols = line.split('|').map((c: string) => c.trim()).filter(Boolean)
-          return {
-            id: String(i),
-            date: cols[0] ?? '',
-            project: cols[1] ?? 'Unknown',
-            ciScore: (cols[5] ?? '').includes('✅') ? 100 : 0,
-            size: '—',
-            buildTime: '—',
-            colorScheme: ['#050505', '#00d4ff', '#4a5568'],
-            url: cols[3] ?? null,
-            status: (cols[5] ?? '').includes('✅') ? 'shipped' : 'building',
-          } as Delivery
-        }).filter((d: Delivery) => d.project && d.project.length > 1)
-        if (parsed.length > 0) setDeliveries(parsed)
-      } catch (e) { console.error('deliveries load failed', e) }
+      const builds = await getBuilds()
+      if (builds.length > 0) setDeliveries(builds)
     }
     load()
   }, [])

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'motion/react'
 import SoulAgentPanel, { type AgentData, type AgentStatus } from './SoulAgentPanel'
-import { invokeGatewayTool, readFile } from '../lib/gatewayApi'
+import { getSessions, getChainState } from '../lib/gatewayApi'
 
 const AGENT_TEMPLATES: Omit<AgentData, 'status' | 'queueDepth' | 'latencyMs' | 'lastAction' | 'tokensBurned' | 'progressPct'>[] = [
   { id: 'director', name: 'Director', emoji: '🎯', description: 'Orchestrates DAG. Assigns missions.' },
@@ -67,16 +67,8 @@ export default function AgentMatrix({ className = '' }: AgentMatrixProps) {
 
   useEffect(() => {
     const poll = async () => {
-      const sessionsResult = await invokeGatewayTool('sessions_list', { limit: 20 }) as { sessions?: GatewaySession[] } | null
-      const sessions = sessionsResult?.sessions ?? []
-
-      const chainRaw = await readFile('/home/austi/.openclaw/workspace/tmp/chain-state.json')
-      let chain: { currentStage?: string; completedStages?: string[] } | null = null
-      try {
-        chain = chainRaw ? JSON.parse(chainRaw) : null
-      } catch {
-        chain = null
-      }
+      const sessions = await getSessions()
+      const chain = await getChainState()
 
       const mapped = AGENT_TEMPLATES.map((template) => {
         const session = sessions.find((s) => s.key?.includes(`:${template.id}:`))

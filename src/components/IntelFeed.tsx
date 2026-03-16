@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { invokeGatewayTool } from '../lib/gatewayApi'
+import { getSubagents, getSessions } from '../lib/gatewayApi'
 
 type EventType = 'INFO' | 'SUCCESS' | 'WARNING' | 'CRITICAL'
 
@@ -24,44 +24,23 @@ export default function IntelFeed() {
 
   useEffect(() => {
     const poll = async () => {
-      const subs = await invokeGatewayTool('subagents', { action: 'list' }) as { active?: Array<{ id?: string; label?: string }> } | null
-      const sessions = await invokeGatewayTool('sessions_list', { limit: 10 }) as { sessions?: Array<{ key?: string; displayName?: string; totalTokens?: number; model?: string; updatedAt?: string }> } | null
-
-      const newEvents: IntelEvent[] = []
+      const subs = await getSubagents()
+      const sessions = await getSessions()
+      const newEvents: any[] = []
       let id = Date.now()
-
       const active = subs?.active ?? []
-      active.forEach((a) => {
-        newEvents.push({
-          id: id++,
-          type: 'INFO',
-          message: `Agent running: ${a.label ?? a.id ?? 'unknown'}`,
-          ts: new Date().toISOString().substring(11, 19),
-        })
+      active.forEach((a: any) => {
+        newEvents.push({ id: id++, type: 'INFO', message: `Agent running: ${a.label ?? a.id}`, ts: new Date().toISOString().substring(11,19) })
       })
-
-      const sess = sessions?.sessions ?? []
-      sess.slice(0, 8).forEach((s) => {
-        const name = s.key?.split(':')?.[2] ?? s.displayName ?? s.key ?? 'session'
+      sessions.slice(0, 8).forEach((s: any) => {
+        const name = s.key?.split(':')?.[2] ?? s.displayName ?? s.key
         const tokens = s.totalTokens ?? 0
         const model = s.model ?? '—'
-        newEvents.push({
-          id: id++,
-          type: 'SUCCESS',
-          message: `${name} | ${model} | ${(tokens / 1000).toFixed(1)}K tokens`,
-          ts: new Date(s.updatedAt ?? Date.now()).toISOString().substring(11, 19),
-        })
+        newEvents.push({ id: id++, type: 'SUCCESS', message: `${name} | ${model} | ${(tokens/1000).toFixed(1)}K tokens`, ts: new Date(s.updatedAt ?? Date.now()).toISOString().substring(11,19) })
       })
-
       if (newEvents.length === 0) {
-        newEvents.push({
-          id: id++,
-          type: 'INFO',
-          message: 'System nominal — no active builds',
-          ts: new Date().toISOString().substring(11, 19),
-        })
+        newEvents.push({ id: id++, type: 'INFO', message: 'System nominal', ts: new Date().toISOString().substring(11,19) })
       }
-
       setEvents(newEvents)
     }
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import ChatSidePanel from './ChatSidePanel'
-import { readFile } from '../lib/gatewayApi'
+import { getChainState } from '../lib/gatewayApi'
 
 const NODE_W = 60
 const NODE_H = 28
@@ -64,19 +64,14 @@ export default function DAGWorkflowCanvas() {
 
   useEffect(() => {
     const poll = async () => {
-      const raw = await readFile('/home/austi/.openclaw/workspace/tmp/chain-state.json')
-      if (!raw) return
-      try {
-        const chain = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw))
-        const completed: string[] = chain.completedStages ?? []
-        const current: string = chain.currentStage ?? ''
-        setNodes(STAGES.map((id) => ({
-          id,
-          status: completed.includes(id) ? 'completed' : id === current ? 'active' : 'pending',
-        })))
-      } catch {
-        // ignore malformed chain-state
-      }
+      const chain = await getChainState()
+      if (!chain) return
+      const completed: string[] = chain.completedStages ?? []
+      const current: string = chain.currentStage ?? ''
+      setNodes(STAGES.map(id => ({
+        id,
+        status: completed.includes(id) ? 'completed' : id === current ? 'active' : 'pending'
+      })))
     }
     poll()
     const id = setInterval(poll, 3000)
