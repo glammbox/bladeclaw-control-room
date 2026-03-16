@@ -109,9 +109,12 @@ export default function IntelFeed() {
     return () => clearTimeout(timeoutRef.current)
   }, [])
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom — scroll the container, not the page
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (bottomRef.current) {
+      const container = bottomRef.current.parentElement
+      if (container) container.scrollTop = container.scrollHeight
+    }
   }, [events])
 
   return (
