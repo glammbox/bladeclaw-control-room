@@ -42,8 +42,8 @@ interface LiveTokenData {
   totalTokens: number
   totalCost: number
   sessions: GatewaySession[]
-  burnRatePerMin: number
-  agents: AgentSpend[]
+  burnRatePerMin?: number
+  agents?: AgentSpend[]
 }
 
 function getGaugeColor(pct: number): string {
@@ -231,11 +231,13 @@ export default function TokenCostTracker({ className = '' }: TokenCostTrackerPro
     return () => clearInterval(id)
   }, [thresholdWarning])
 
+  const burnRatePerMin = liveData.burnRatePerMin ?? 0
+  const agents = liveData.agents ?? []
   const previous = renderedTotals.current
   const hasCostChanged = previous.totalCost !== liveData.totalCost
   const hasTokensChanged = previous.totalTokens !== liveData.totalTokens
-  const hasBurnChanged = previous.burnRatePerMin !== liveData.burnRatePerMin
-  const maxAgentCost = liveData.agents.length ? Math.max(...liveData.agents.map((a) => a.cost)) : 0
+  const hasBurnChanged = previous.burnRatePerMin !== burnRatePerMin
+  const maxAgentCost = agents.length ? Math.max(...agents.map((a) => a.cost)) : 0
   const budgetPct = liveData.totalCost / BUDGET_CAP
   const gaugeColor = getGaugeColor(budgetPct)
 
@@ -243,9 +245,9 @@ export default function TokenCostTracker({ className = '' }: TokenCostTrackerPro
     renderedTotals.current = {
       totalCost: liveData.totalCost,
       totalTokens: liveData.totalTokens,
-      burnRatePerMin: liveData.burnRatePerMin,
+      burnRatePerMin,
     }
-  }, [liveData.totalCost, liveData.totalTokens, liveData.burnRatePerMin])
+  }, [liveData.totalCost, liveData.totalTokens, burnRatePerMin])
 
   return (
     <div className={`flex flex-col gap-4 ${className}`}>
@@ -312,7 +314,7 @@ export default function TokenCostTracker({ className = '' }: TokenCostTrackerPro
       </div>
 
       <div className={hasBurnChanged ? 'data-update' : ''}>
-        <BurnRateMeter ratePerMin={liveData.burnRatePerMin} />
+        <BurnRateMeter ratePerMin={burnRatePerMin} />
       </div>
 
       <div style={{ marginTop: '8px', borderTop: '1px solid rgba(0,212,255,0.08)', paddingTop: '6px' }}>
@@ -333,7 +335,7 @@ export default function TokenCostTracker({ className = '' }: TokenCostTrackerPro
           Per-Agent Spend
         </span>
         <div style={{ overflowY: 'scroll', maxHeight: '100px', scrollbarWidth: 'thin', scrollbarColor: 'rgba(0,212,255,0.3) transparent' }}>
-          {liveData.agents.map((agent) => (
+          {agents.map((agent) => (
             <SpendBar key={agent.id} agent={agent} maxCost={maxAgentCost} />
           ))}
         </div>
