@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
+import { invokeGatewayTool } from '../lib/gatewayApi'
 
 const MODEL_PRICING: Record<string, { input: number; output: number; label: string }> = {
   'claude-sonnet-4-6': { input: 3.0, output: 15.0, label: 'Claude Sonnet 4.6' },
@@ -11,17 +12,6 @@ const MODEL_PRICING: Record<string, { input: number; output: number; label: stri
 }
 
 const MODEL_USAGE_KEYS = Object.keys(MODEL_PRICING)
-const AGENT_COSTS = [
-  { name: 'Builder', model: 'claude-sonnet-4-6', tokens: 12400, cost: 0.186 },
-  { name: 'Validator', model: 'gpt-5.4', tokens: 8200, cost: 0.041 },
-  { name: 'Research', model: 'gpt-5.4', tokens: 6100, cost: 0.031 },
-  { name: 'Content', model: 'gpt-5.4', tokens: 4800, cost: 0.024 },
-  { name: 'Planner', model: 'gpt-5.4', tokens: 3200, cost: 0.016 },
-  { name: 'Market', model: 'grok-4-1-fast', tokens: 2900, cost: 0.0 },
-  { name: 'Media', model: 'gemini-flash', tokens: 1200, cost: 0.0 },
-  { name: 'Pulse', model: 'grok-4-1-fast', tokens: 800, cost: 0.0 },
-  { name: 'Optimizer', model: 'gemini-pro', tokens: 2100, cost: 0.0 },
-]
 
 interface AgentSpend {
   id: string
@@ -32,15 +22,6 @@ interface AgentSpend {
   color: string
 }
 
-interface TokenState {
-  totalTokens: number
-  totalCost: number
-  budgetCap: number
-  burnRatePerMin: number
-  agents: AgentSpend[]
-}
-
-const COST_PER_1K = 0.003
 const BUDGET_CAP = 5.0
 
 const AGENT_COLORS = [
@@ -49,59 +30,20 @@ const AGENT_COLORS = [
   '#88ff00', '#ff44aa',
 ]
 
-const AGENT_NAMES = [
-  { id: 'director', name: 'Director', emoji: '🎯' },
-  { id: 'pulse', name: 'Pulse', emoji: '⚡' },
-  { id: 'planner', name: 'Planner', emoji: '🏗️' },
-  { id: 'research', name: 'Research', emoji: '🔍' },
-  { id: 'market', name: 'Market', emoji: '📊' },
-  { id: 'content', name: 'Content', emoji: '✍️' },
-  { id: 'media', name: 'Media', emoji: '🎨' },
-  { id: 'builder', name: 'Builder', emoji: '🔧' },
-  { id: 'validator', name: 'Validator', emoji: '✅' },
-  { id: 'optimizer', name: 'Optimizer', emoji: '⚙️' },
-]
-
-function generateInitialState(): TokenState {
-  const agents: AgentSpend[] = AGENT_NAMES.map((a, i) => {
-    const tokens = 1000 + Math.floor(Math.random() * 6000)
-    return {
-      ...a,
-      tokens,
-      cost: (tokens / 1000) * COST_PER_1K,
-      color: AGENT_COLORS[i],
-    }
-  })
-
-  const totalTokens = agents.reduce((s, a) => s + a.tokens, 0)
-  const totalCost = agents.reduce((s, a) => s + a.cost, 0)
-
-  return {
-    totalTokens,
-    totalCost,
-    budgetCap: BUDGET_CAP,
-    burnRatePerMin: 180 + Math.floor(Math.random() * 120),
-    agents,
-  }
+interface GatewaySession {
+  key?: string
+  displayName?: string
+  model?: string
+  totalTokens?: number
+  updatedAt?: string
 }
 
-function evolveState(prev: TokenState): TokenState {
-  const agents = prev.agents.map((a) => {
-    const delta = Math.floor(Math.random() * 200)
-    const tokens = a.tokens + delta
-    return { ...a, tokens, cost: (tokens / 1000) * COST_PER_1K }
-  })
-
-  const totalTokens = agents.reduce((s, a) => s + a.tokens, 0)
-  const totalCost = agents.reduce((s, a) => s + a.cost, 0)
-
-  return {
-    ...prev,
-    totalTokens,
-    totalCost,
-    burnRatePerMin: Math.max(50, prev.burnRatePerMin + Math.floor(Math.random() * 30) - 15),
-    agents,
-  }
+interface LiveTokenData {
+  totalTokens: number
+  totalCost: number
+  sessions: GatewaySession[]
+  burnRatePerMin: number
+  agents: AgentSpend[]
 }
 
 function getGaugeColor(pct: number): string {
@@ -265,40 +207,74 @@ interface TokenCostTrackerProps {
 }
 
 export default function TokenCostTracker({ className = '' }: TokenCostTrackerProps) {
-  const [state, setState] = useState<TokenState>(() => generateInitialState())
+  const [liveData, setLiveData] = useState<LiveTokenData>({
+    totalTokens: 0,
+    totalCost: 0,
+    sessions: [],
+    burnRatePerMin: 0,
+    agents: [],
+  })
   const [thresholdWarning, setThresholdWarning] = useState(false)
-  const previousTotals = useRef({ totalCost: state.totalCost, totalTokens: state.totalTokens, burnRatePerMin: state.burnRatePerMin })
+  const previousTotals = useRef({ totalCost: 0, totalTokens: 0, burnRatePerMin: 0, at: Date.now() })
+  const renderedTotals = useRef({ totalCost: 0, totalTokens: 0, burnRatePerMin: 0 })
 
   useEffect(() => {
-    const id = setInterval(() => {
-      setState((prev) => {
-        const next = evolveState(prev)
-        if (next.totalCost / next.budgetCap > 0.85 && !thresholdWarning) {
-          setThresholdWarning(true)
-          setTimeout(() => setThresholdWarning(false), 3000)
+    const poll = async () => {
+      const result = await invokeGatewayTool('sessions_list', { limit: 20 }) as { sessions?: GatewaySession[] } | null
+      const sessions = result?.sessions ?? []
+      const totalTokens = sessions.reduce((sum: number, s) => sum + (s.totalTokens ?? 0), 0)
+      const totalCost = totalTokens * 0.000009
+
+      const now = Date.now()
+      const prev = previousTotals.current
+      const elapsedMin = Math.max((now - prev.at) / 60000, 1 / 60)
+      const burnRatePerMin = Math.max(0, Math.round((totalTokens - prev.totalTokens) / elapsedMin))
+
+      const agents = sessions.map((s, i) => {
+        const id = s.key ?? `session-${i}`
+        const parts = (s.key ?? '').split(':')
+        const keyName = parts[2] || parts[1] || s.displayName || id
+        const name = keyName.charAt(0).toUpperCase() + keyName.slice(1)
+        const tokens = s.totalTokens ?? 0
+        return {
+          id,
+          name,
+          emoji: '•',
+          tokens,
+          cost: tokens * 0.000009,
+          color: AGENT_COLORS[i % AGENT_COLORS.length],
         }
-        return next
       })
-    }, 2000)
+
+      if (totalCost / BUDGET_CAP > 0.85 && !thresholdWarning) {
+        setThresholdWarning(true)
+        setTimeout(() => setThresholdWarning(false), 3000)
+      }
+
+      setLiveData({ totalTokens, totalCost, sessions, burnRatePerMin, agents })
+      previousTotals.current = { totalCost, totalTokens, burnRatePerMin, at: now }
+    }
+
+    poll()
+    const id = setInterval(poll, 8000)
     return () => clearInterval(id)
   }, [thresholdWarning])
 
-  const previous = previousTotals.current
-  const hasCostChanged = previous.totalCost !== state.totalCost
-  const hasTokensChanged = previous.totalTokens !== state.totalTokens
-  const hasBurnChanged = previous.burnRatePerMin !== state.burnRatePerMin
+  const previous = renderedTotals.current
+  const hasCostChanged = previous.totalCost !== liveData.totalCost
+  const hasTokensChanged = previous.totalTokens !== liveData.totalTokens
+  const hasBurnChanged = previous.burnRatePerMin !== liveData.burnRatePerMin
+  const maxAgentCost = liveData.agents.length ? Math.max(...liveData.agents.map((a) => a.cost)) : 0
+  const budgetPct = liveData.totalCost / BUDGET_CAP
+  const gaugeColor = getGaugeColor(budgetPct)
 
   useEffect(() => {
-    previousTotals.current = {
-      totalCost: state.totalCost,
-      totalTokens: state.totalTokens,
-      burnRatePerMin: state.burnRatePerMin,
+    renderedTotals.current = {
+      totalCost: liveData.totalCost,
+      totalTokens: liveData.totalTokens,
+      burnRatePerMin: liveData.burnRatePerMin,
     }
-  }, [state.totalCost, state.totalTokens, state.burnRatePerMin])
-
-  const maxAgentCost = Math.max(...state.agents.map((a) => a.cost))
-  const budgetPct = state.totalCost / state.budgetCap
-  const gaugeColor = getGaugeColor(budgetPct)
+  }, [liveData.totalCost, liveData.totalTokens, liveData.burnRatePerMin])
 
   return (
     <div className={`flex flex-col gap-4 ${className}`}>
@@ -328,13 +304,13 @@ export default function TokenCostTracker({ className = '' }: TokenCostTrackerPro
       </AnimatePresence>
 
       <div className="flex items-center gap-4">
-        <BurnGauge current={state.totalCost} cap={state.budgetCap} />
+        <BurnGauge current={liveData.totalCost} cap={BUDGET_CAP} />
 
         <div className="flex-1 flex flex-col gap-2">
           <div className="flex flex-col">
             <span className="font-label text-[9px] tracking-widest" style={{ color: 'var(--chrome-dim)' }}>TOTAL SPENT</span>
             <AnimatedValue
-              value={`$${state.totalCost.toFixed(4)}`}
+              value={`$${liveData.totalCost.toFixed(4)}`}
               changed={hasCostChanged}
               className="text-2xl font-bold tabular-nums"
               style={{
@@ -348,7 +324,7 @@ export default function TokenCostTracker({ className = '' }: TokenCostTrackerPro
           <div className="flex flex-col">
             <span className="font-label text-[9px] tracking-widest" style={{ color: 'var(--chrome-dim)' }}>TOKENS CONSUMED</span>
             <AnimatedValue
-              value={state.totalTokens.toLocaleString()}
+              value={liveData.totalTokens.toLocaleString()}
               changed={hasTokensChanged}
               className="font-data text-sm font-bold tabular-nums"
               style={{ color: 'var(--chrome-bright)' }}
@@ -358,23 +334,23 @@ export default function TokenCostTracker({ className = '' }: TokenCostTrackerPro
           <div className="flex flex-col">
             <span className="font-label text-[9px] tracking-widest" style={{ color: 'var(--chrome-dim)' }}>BUDGET CAP</span>
             <span className="font-data text-[11px]" style={{ color: 'var(--chrome)' }}>
-              ${state.budgetCap.toFixed(2)}
+              ${BUDGET_CAP.toFixed(2)}
             </span>
           </div>
         </div>
       </div>
 
       <div className={hasBurnChanged ? 'data-update' : ''}>
-        <BurnRateMeter ratePerMin={state.burnRatePerMin} />
+        <BurnRateMeter ratePerMin={liveData.burnRatePerMin} />
       </div>
 
       <div style={{ marginTop: '8px', borderTop: '1px solid rgba(0,212,255,0.08)', paddingTop: '6px' }}>
         <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '9px', letterSpacing: '0.12em', color: 'rgba(0,212,255,0.6)', marginBottom: '4px' }}>PER AGENT</div>
-        {AGENT_COSTS.map(a => (
-          <div key={a.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0', borderBottom: '1px solid rgba(0,212,255,0.04)' }}>
-            <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '10px', color: '#8892a4', fontWeight: 600, letterSpacing: '0.06em' }}>{a.name}</span>
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '9px', color: '#c0cfe0' }}>{(a.tokens / 1000).toFixed(1)}K</span>
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '9px', color: a.cost > 0 ? '#00d4ff' : 'rgba(0,212,255,0.3)' }}>${a.cost.toFixed(3)}</span>
+        {liveData.sessions.map(s => (
+          <div key={s.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0', borderBottom: '1px solid rgba(0,212,255,0.04)' }}>
+            <span style={{ fontFamily: 'Rajdhani,sans-serif', fontSize: '10px', color: '#8892a4', fontWeight: 600 }}>{s.key?.split(':')?.[1] ?? s.displayName}</span>
+            <span style={{ fontFamily: 'JetBrains Mono,monospace', fontSize: '9px', color: '#c0cfe0' }}>{((s.totalTokens ?? 0) / 1000).toFixed(1)}K</span>
+            <span style={{ fontFamily: 'JetBrains Mono,monospace', fontSize: '9px', color: '#00d4ff' }}>{s.model ?? '—'}</span>
           </div>
         ))}
       </div>
@@ -385,29 +361,29 @@ export default function TokenCostTracker({ className = '' }: TokenCostTrackerPro
         <span className="font-label text-[9px] tracking-widest uppercase mb-1" style={{ color: 'var(--chrome-dim)' }}>
           Per-Agent Spend
         </span>
-        {state.agents.map((agent) => (
+        {liveData.agents.map((agent) => (
           <SpendBar key={agent.id} agent={agent} maxCost={maxAgentCost} />
         ))}
       </div>
 
       <div className="h-px" style={{ background: 'rgba(0,212,255,0.08)' }} />
 
-      <ModelPricingTable activeModel="claude-sonnet-4-6" />
+      <ModelPricingTable
+        activeModel={liveData.sessions[0]?.model ?? 'claude-sonnet-4-6'}
+        sessions={liveData.sessions}
+      />
     </div>
   )
 }
 
-const SESSION_MODEL_USAGE: Record<string, { inputTokens: number; outputTokens: number }> = {
-  'claude-sonnet-4-6': { inputTokens: 18400, outputTokens: 6200 },
-  'gpt-5.4': { inputTokens: 12800, outputTokens: 4100 },
-  'gpt-4o': { inputTokens: 5200, outputTokens: 1400 },
-  'grok-4-1-fast-reasoning': { inputTokens: 22100, outputTokens: 8900 },
-  'gemini-3.1-pro-preview': { inputTokens: 9400, outputTokens: 3200 },
-  'gemini-3-flash-preview': { inputTokens: 7800, outputTokens: 2600 },
-}
-
-function ModelPricingTable({ activeModel }: { activeModel: string }) {
+function ModelPricingTable({ activeModel, sessions }: { activeModel: string; sessions: GatewaySession[] }) {
   const [copied, setCopied] = useState<string | null>(null)
+  const usageByModel = sessions.reduce<Record<string, number>>((acc, session) => {
+    const key = session.model ?? ''
+    if (!key) return acc
+    acc[key] = (acc[key] ?? 0) + (session.totalTokens ?? 0)
+    return acc
+  }, {})
 
   const handleCopy = (key: string) => {
     navigator.clipboard.writeText(key).then(() => {
@@ -435,7 +411,7 @@ function ModelPricingTable({ activeModel }: { activeModel: string }) {
           <tbody>
             {MODEL_USAGE_KEYS.map((key, index) => {
               const pricing = MODEL_PRICING[key]
-              const usage = SESSION_MODEL_USAGE[key] ?? { inputTokens: 0, outputTokens: 0 }
+              const usage = { inputTokens: usageByModel[key] ?? 0, outputTokens: 0 }
               const cost = (usage.inputTokens / 1_000_000) * pricing.input + (usage.outputTokens / 1_000_000) * pricing.output
               const totalTokens = usage.inputTokens + usage.outputTokens
               const isActive = key === activeModel

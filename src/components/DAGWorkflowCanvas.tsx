@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import ChatSidePanel from './ChatSidePanel'
+import { readFile } from '../lib/gatewayApi'
 
 const NODE_W = 60
 const NODE_H = 28
@@ -41,8 +42,6 @@ interface DAGNode {
   status: NodeStatus
 }
 
-const PROGRESSION_SEQUENCE = STAGES
-
 const initialNodes: DAGNode[] = STAGES.map((id, i) => ({
   id,
   status: i === 0 ? 'active' : 'pending',
@@ -61,14 +60,27 @@ function getArrowStroke(node: DAGNode, nextNode: DAGNode): string {
 
 export default function DAGWorkflowCanvas() {
   const [nodes, setNodes] = useState<DAGNode[]>(initialNodes)
-  const [tick, setTick] = useState(0)
   const [activeTaskIndices, setActiveTaskIndices] = useState<Record<string, number>>({})
 
   useEffect(() => {
-    const interval = window.setInterval(() => {
-      setTick((t) => t + 1)
-    }, 2500)
-    return () => clearInterval(interval)
+    const poll = async () => {
+      const raw = await readFile('/home/austi/.openclaw/workspace/tmp/chain-state.json')
+      if (!raw) return
+      try {
+        const chain = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw))
+        const completed: string[] = chain.completedStages ?? []
+        const current: string = chain.currentStage ?? ''
+        setNodes(STAGES.map((id) => ({
+          id,
+          status: completed.includes(id) ? 'completed' : id === current ? 'active' : 'pending',
+        })))
+      } catch {
+        // ignore malformed chain-state
+      }
+    }
+    poll()
+    const id = setInterval(poll, 3000)
+    return () => clearInterval(id)
   }, [])
 
   useEffect(() => {
@@ -86,37 +98,6 @@ export default function DAGWorkflowCanvas() {
     }, 2000)
     return () => clearInterval(interval)
   }, [nodes])
-
-  useEffect(() => {
-    setNodes((prev) => {
-      const updated = prev.map((n) => ({ ...n }))
-      let activeIdx = -1
-      for (let i = 0; i < PROGRESSION_SEQUENCE.length; i++) {
-        const id = PROGRESSION_SEQUENCE[i]
-        const n = updated.find((x) => x.id === id)
-        if (n?.status === 'active') {
-          activeIdx = i
-          break
-        }
-      }
-      if (activeIdx === -1) {
-        const firstPending = PROGRESSION_SEQUENCE.findIndex((id) => updated.find((x) => x.id === id)?.status === 'pending')
-        if (firstPending !== -1) {
-          const node = updated.find((x) => x.id === PROGRESSION_SEQUENCE[firstPending])
-          if (node) node.status = 'active'
-        }
-      } else {
-        const activeNode = updated.find((x) => x.id === PROGRESSION_SEQUENCE[activeIdx])
-        if (activeNode) activeNode.status = 'completed'
-        const nextId = PROGRESSION_SEQUENCE[activeIdx + 1]
-        if (nextId) {
-          const nextNode = updated.find((x) => x.id === nextId)
-          if (nextNode && nextNode.status === 'pending') nextNode.status = 'active'
-        }
-      }
-      return updated
-    })
-  }, [tick])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '6px', padding: '8px' }}>

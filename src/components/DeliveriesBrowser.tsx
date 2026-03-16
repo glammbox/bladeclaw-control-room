@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Download, Search, CheckCircle, Clock, AlertCircle, XCircle, X, ExternalLink, type LucideIcon } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
+import { invokeGatewayTool } from '../lib/gatewayApi'
 
 const PROJECT_URLS: Record<string, string> = {
   "Dave's Harley Shop": 'https://daves-harley-shop.vercel.app',
@@ -21,20 +22,8 @@ interface Delivery {
   size: string
   buildTime: string
   colorScheme: string[]
+  url?: string | null
 }
-
-const DELIVERIES: Delivery[] = [
-  { id: 'd1',  project: "Dave's Harley Shop",       ciScore: 98, date: '2026-03-14', status: 'shipped',  size: '4.2 MB', buildTime: '1m 23s', colorScheme: ['#1a1a2e', '#f97316', '#c0c0c0'] },
-  { id: 'd2',  project: 'bark-noir-v2',              ciScore: 96, date: '2026-03-13', status: 'shipped',  size: '3.8 MB', buildTime: '1m 11s', colorScheme: ['#0d0d0d', '#8b5cf6', '#e2e8f0'] },
-  { id: 'd3',  project: 'neon-dojo-studios',          ciScore: 94, date: '2026-03-12', status: 'shipped',  size: '5.1 MB', buildTime: '1m 44s', colorScheme: ['#050505', '#00d4ff', '#ff0080'] },
-  { id: 'd4',  project: 'iron-valley-realty',         ciScore: 92, date: '2026-03-11', status: 'shipped',  size: '3.4 MB', buildTime: '58s',    colorScheme: ['#1c2333', '#3b82f6', '#f1f5f9'] },
-  { id: 'd5',  project: 'crypto-pulse-dashboard',     ciScore: 89, date: '2026-03-10', status: 'review',   size: '2.9 MB', buildTime: '2m 05s', colorScheme: ['#0a0a0f', '#22c55e', '#ffd700'] },
-  { id: 'd6',  project: 'synthwave-vinyl-store',      ciScore: 91, date: '2026-03-10', status: 'shipped',  size: '6.7 MB', buildTime: '2m 31s', colorScheme: ['#120020', '#ff0080', '#7c3aed'] },
-  { id: 'd7',  project: 'bladeclaw-control-room',     ciScore: 0,  date: '2026-03-14', status: 'building', size: '—',      buildTime: '—',      colorScheme: ['#050505', '#00d4ff', '#4a5568'] },
-  { id: 'd8',  project: 'phantom-speed-garage',       ciScore: 87, date: '2026-03-09', status: 'shipped',  size: '4.9 MB', buildTime: '1m 55s', colorScheme: ['#0a0a0a', '#ef4444', '#c0c0c0'] },
-  { id: 'd9',  project: 'northstar-consulting',       ciScore: 55, date: '2026-03-08', status: 'failed',   size: '—',      buildTime: '—',      colorScheme: ['#f8fafc', '#1e3a5f', '#94a3b8'] },
-  { id: 'd10', project: 'eclipse-tattoo-collective',  ciScore: 97, date: '2026-03-08', status: 'shipped',  size: '3.1 MB', buildTime: '1m 02s', colorScheme: ['#1a0010', '#ff6b6b', '#c084fc'] },
-]
 
 // Key files per project (hardcoded for mock builds)
 const PROJECT_FILES: Record<string, string[]> = {
@@ -252,8 +241,49 @@ function DeliveryDrawer({ delivery, onClose }: DrawerProps) {
 
 export default function DeliveriesBrowser() {
   const [query, setQuery] = useState('')
-  const [deliveries, setDeliveries] = useState(DELIVERIES)
+  const [deliveries, setDeliveries] = useState<Delivery[]>([])
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null)
+
+  useEffect(() => {
+    const load = async () => {
+      const result = await invokeGatewayTool('read', {
+        path: '/home/austi/.openclaw/workspace/memory/builds-index.md',
+      }) as string | { content?: Array<{ text?: string }> } | null
+
+      const text = typeof result === 'string' ? result : result?.content?.[0]?.text ?? ''
+      const lines = text
+        .split('\n')
+        .filter((l: string) => l.startsWith('|') && !l.includes('---') && !l.includes('Date'))
+
+      const parsed = lines.map((line: string, i: number) => {
+        const cols = line.split('|').map((c: string) => c.trim()).filter(Boolean)
+        const statusText = cols[5] ?? ''
+        const isShipped = statusText.includes('✅')
+        const status: DeliveryStatus = isShipped
+          ? 'shipped'
+          : statusText.includes('❌')
+            ? 'failed'
+            : statusText.includes('⚠️')
+              ? 'building'
+              : 'review'
+        const url = (cols[3] ?? '').startsWith('http') ? cols[3] : null
+        return {
+          id: String(i),
+          project: cols[1] ?? 'Unknown',
+          ciScore: isShipped ? 100 : 0,
+          date: cols[0] ?? '',
+          status,
+          size: '—',
+          buildTime: '—',
+          colorScheme: ['#050505', '#00d4ff', '#4a5568'],
+          url,
+        } as Delivery
+      }).filter((d: Delivery) => d.project && d.project !== 'Project')
+
+      setDeliveries(parsed)
+    }
+    load()
+  }, [])
 
   const filtered = deliveries.filter(d =>
     d.project.toLowerCase().includes(query.toLowerCase()) ||
@@ -289,7 +319,7 @@ export default function DeliveriesBrowser() {
                 style={{ position: 'relative', boxShadow: 'none' }}
                 onClick={() => {
                   const slug = delivery.project.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-                  const url = PROJECT_URLS[delivery.project] || PROJECT_URLS[slug]
+                  const url = delivery.url || PROJECT_URLS[delivery.project] || PROJECT_URLS[slug]
                   if (url) window.open(url, '_blank')
                   setSelectedDelivery(delivery)
                 }}
@@ -329,7 +359,7 @@ export default function DeliveriesBrowser() {
                 <div className="mt-2 flex items-center justify-between gap-2">
                   {delivery.status === 'shipped' && (() => {
                     const slug = delivery.project.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-                    const url = PROJECT_URLS[delivery.project] || PROJECT_URLS[slug]
+                    const url = delivery.url || PROJECT_URLS[delivery.project] || PROJECT_URLS[slug]
                     return url ? (
                       <button
                         onClick={e => { e.stopPropagation(); window.open(url, '_blank') }}

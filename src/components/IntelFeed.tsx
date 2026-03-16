@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { invokeGatewayTool } from '../lib/gatewayApi'
 
 type EventType = 'INFO' | 'SUCCESS' | 'WARNING' | 'CRITICAL'
 
@@ -9,52 +10,6 @@ interface IntelEvent {
   ts: string
 }
 
-let eventCounter = 0
-
-function makeId() { return ++eventCounter }
-
-function timestamp(): string {
-  return new Date().toISOString().replace('T', ' ').substring(11, 23)
-}
-
-const SEED_EVENTS: Omit<IntelEvent, 'id' | 'ts'>[] = [
-  { type: 'INFO',     message: 'Pulse agent initialized — scanning for new prompts' },
-  { type: 'INFO',     message: 'Director spawning Planner for session bc-20260314' },
-  { type: 'SUCCESS',  message: 'Planner blueprint generated — 12 sections, 3 pages' },
-  { type: 'INFO',     message: 'Research agent started — querying competitor landscape' },
-  { type: 'INFO',     message: 'Market agent started — pulling demographic signals' },
-  { type: 'WARNING',  message: 'Token threshold reached 80% on Research agent' },
-  { type: 'INFO',     message: 'Content agent received research output — 4,200 tokens' },
-  { type: 'INFO',     message: 'Media agent generating image manifest — 14 assets' },
-  { type: 'SUCCESS',  message: 'Build batch 1 complete — config + scaffold (0 errors)' },
-  { type: 'SUCCESS',  message: 'Build batch 2 complete — components (0 TypeScript errors)' },
-  { type: 'INFO',     message: 'Validator running CI pipeline — bladeclaw-control-room' },
-  { type: 'SUCCESS',  message: 'Validator passed — CI score: 97/100' },
-  { type: 'INFO',     message: 'Optimizer applying performance patches — 3 suggestions' },
-  { type: 'SUCCESS',  message: 'Build packaged — ZIP ready (4.2 MB)' },
-]
-
-const LIVE_EVENT_POOL: Omit<IntelEvent, 'id' | 'ts'>[] = [
-  { type: 'INFO',     message: 'Heartbeat received from Pulse agent' },
-  { type: 'INFO',     message: 'Director polling chain-state — 3 agents active' },
-  { type: 'SUCCESS',  message: 'Agent handoff complete: Builder → Validator' },
-  { type: 'WARNING',  message: 'Rate limit approaching on xAI Grok endpoint' },
-  { type: 'INFO',     message: 'Memory pruning triggered — daily log rotated' },
-  { type: 'SUCCESS',  message: 'New delivery registered — phantom-speed-garage' },
-  { type: 'CRITICAL', message: 'Validator rejected build — TypeScript error in Hero.tsx' },
-  { type: 'INFO',     message: 'Retry triggered — Builder spawning fresh batch' },
-  { type: 'SUCCESS',  message: 'Build retry succeeded — error patched (0 errors)' },
-  { type: 'WARNING',  message: 'Memory usage elevated — 78% on Builder agent' },
-  { type: 'INFO',     message: 'GPT-5.4 fallback activated — Sonnet rate limited' },
-  { type: 'SUCCESS',  message: 'Delivery shipped — bark-noir-v2 (96 CI score)' },
-  { type: 'INFO',     message: 'Planner queued 2 new sessions for tomorrow' },
-  { type: 'WARNING',  message: 'Token burn rate $2.40/hr — above budget threshold' },
-  { type: 'CRITICAL', message: 'Build stall detected — stage deadline exceeded 180s' },
-  { type: 'INFO',     message: 'Stage timeout recovery initiated — requeuing task' },
-  { type: 'SUCCESS',  message: 'Optimizer applied lazy-load patch — bundle -22%' },
-  { type: 'INFO',     message: 'Codex subtask dispatched — 7 files in batch 3' },
-]
-
 const TYPE_STYLES: Record<EventType, { color: string; label: string; glow?: string }> = {
   INFO:     { color: 'text-sky-400',   label: 'INFO',    glow: undefined         },
   SUCCESS:  { color: 'text-green-400', label: 'OK',      glow: '0 0 6px #22c55e' },
@@ -62,51 +17,57 @@ const TYPE_STYLES: Record<EventType, { color: string; label: string; glow?: stri
   CRITICAL: { color: 'text-red-400',   label: 'CRIT',    glow: '0 0 8px #ef4444' },
 }
 
-function initSeedEvents(): IntelEvent[] {
-  const now = Date.now()
-  return SEED_EVENTS.map((e, i) => ({
-    ...e,
-    id: makeId(),
-    ts: new Date(now - (SEED_EVENTS.length - i) * 8000).toISOString().replace('T', ' ').substring(11, 23),
-  }))
-}
-
 export default function IntelFeed() {
-  const [events, setEvents] = useState<IntelEvent[]>(initSeedEvents)
+  const [events, setEvents] = useState<IntelEvent[]>([])
   const bottomRef = useRef<HTMLDivElement>(null)
-  const poolRef = useRef(0)
+  const containerRef = useRef<HTMLDivElement>(null)
 
-  // Add a new event every 3-5 seconds
   useEffect(() => {
-    const addEvent = () => {
-      const template = LIVE_EVENT_POOL[poolRef.current % LIVE_EVENT_POOL.length]
-      poolRef.current++
+    const poll = async () => {
+      const subs = await invokeGatewayTool('subagents', { action: 'list' }) as { active?: Array<{ id?: string; label?: string }> } | null
+      const sessions = await invokeGatewayTool('sessions_list', { limit: 10 }) as { sessions?: Array<{ key?: string; displayName?: string; totalTokens?: number; model?: string; updatedAt?: string }> } | null
 
-      const newEvent: IntelEvent = {
-        id: makeId(),
-        type: template.type,
-        message: template.message,
-        ts: timestamp(),
+      const newEvents: IntelEvent[] = []
+      let id = Date.now()
+
+      const active = subs?.active ?? []
+      active.forEach((a) => {
+        newEvents.push({
+          id: id++,
+          type: 'INFO',
+          message: `Agent running: ${a.label ?? a.id ?? 'unknown'}`,
+          ts: new Date().toISOString().substring(11, 19),
+        })
+      })
+
+      const sess = sessions?.sessions ?? []
+      sess.slice(0, 8).forEach((s) => {
+        const name = s.key?.split(':')?.[2] ?? s.displayName ?? s.key ?? 'session'
+        const tokens = s.totalTokens ?? 0
+        const model = s.model ?? '—'
+        newEvents.push({
+          id: id++,
+          type: 'SUCCESS',
+          message: `${name} | ${model} | ${(tokens / 1000).toFixed(1)}K tokens`,
+          ts: new Date(s.updatedAt ?? Date.now()).toISOString().substring(11, 19),
+        })
+      })
+
+      if (newEvents.length === 0) {
+        newEvents.push({
+          id: id++,
+          type: 'INFO',
+          message: 'System nominal — no active builds',
+          ts: new Date().toISOString().substring(11, 19),
+        })
       }
 
-      setEvents(prev => {
-        const updated = [...prev, newEvent]
-        // Keep last 20
-        return updated.length > 20 ? updated.slice(-20) : updated
-      })
+      setEvents(newEvents)
     }
 
-    // Random interval 2.5–5s
-    const schedule = () => {
-      const delay = 2500 + Math.random() * 2500
-      return window.setTimeout(() => {
-        addEvent()
-        timeoutRef.current = schedule()
-      }, delay)
-    }
-
-    const timeoutRef = { current: schedule() }
-    return () => clearTimeout(timeoutRef.current)
+    poll()
+    const id2 = setInterval(poll, 5000)
+    return () => clearInterval(id2)
   }, [])
 
   // Auto-scroll to bottom — scroll the container, not the page
@@ -128,7 +89,16 @@ export default function IntelFeed() {
       </div>
 
       {/* Event list */}
-      <div className="flex-1 overflow-y-auto font-mono text-[11px] space-y-0.5 scrollbar-thin pr-1">
+      <div
+        ref={containerRef}
+        style={{
+          flex: 1,
+          overflowY: 'scroll',
+          scrollbarWidth: 'thin',
+          scrollbarColor: 'rgba(0,212,255,0.4) transparent',
+        }}
+        className="font-mono text-[11px] space-y-0.5 pr-1"
+      >
         {events.map((ev, i) => {
           const style = TYPE_STYLES[ev.type]
           const isNew = i === events.length - 1
