@@ -11,6 +11,17 @@ const MODEL_PRICING: Record<string, { input: number; output: number; label: stri
 }
 
 const MODEL_USAGE_KEYS = Object.keys(MODEL_PRICING)
+const AGENT_COSTS = [
+  { name: 'Builder', model: 'claude-sonnet-4-6', tokens: 12400, cost: 0.186 },
+  { name: 'Validator', model: 'gpt-5.4', tokens: 8200, cost: 0.041 },
+  { name: 'Research', model: 'gpt-5.4', tokens: 6100, cost: 0.031 },
+  { name: 'Content', model: 'gpt-5.4', tokens: 4800, cost: 0.024 },
+  { name: 'Planner', model: 'gpt-5.4', tokens: 3200, cost: 0.016 },
+  { name: 'Market', model: 'grok-4-1-fast', tokens: 2900, cost: 0.0 },
+  { name: 'Media', model: 'gemini-flash', tokens: 1200, cost: 0.0 },
+  { name: 'Pulse', model: 'grok-4-1-fast', tokens: 800, cost: 0.0 },
+  { name: 'Optimizer', model: 'gemini-pro', tokens: 2100, cost: 0.0 },
+]
 
 interface AgentSpend {
   id: string
@@ -355,6 +366,17 @@ export default function TokenCostTracker({ className = '' }: TokenCostTrackerPro
 
       <div className={hasBurnChanged ? 'data-update' : ''}>
         <BurnRateMeter ratePerMin={state.burnRatePerMin} />
+      </div>
+
+      <div style={{ marginTop: '8px', borderTop: '1px solid rgba(0,212,255,0.08)', paddingTop: '6px' }}>
+        <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '9px', letterSpacing: '0.12em', color: 'rgba(0,212,255,0.6)', marginBottom: '4px' }}>PER AGENT</div>
+        {AGENT_COSTS.map(a => (
+          <div key={a.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0', borderBottom: '1px solid rgba(0,212,255,0.04)' }}>
+            <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '10px', color: '#8892a4', fontWeight: 600, letterSpacing: '0.06em' }}>{a.name}</span>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '9px', color: '#c0cfe0' }}>{(a.tokens / 1000).toFixed(1)}K</span>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '9px', color: a.cost > 0 ? '#00d4ff' : 'rgba(0,212,255,0.3)' }}>${a.cost.toFixed(3)}</span>
+          </div>
+        ))}
       </div>
 
       <div className="h-px" style={{ background: 'rgba(0,212,255,0.08)' }} />

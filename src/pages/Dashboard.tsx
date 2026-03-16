@@ -18,11 +18,11 @@ import AgentMatrix from '../components/AgentMatrix'
 import TokenCostTracker from '../components/TokenCostTracker'
 import DAGWorkflowCanvas from '../components/DAGWorkflowCanvas'
 import DeliveriesBrowser from '../components/DeliveriesBrowser'
-import MediaHub from '../components/MediaHub'
+import IntelFeed from '../components/IntelFeed'
 import ModelSpawner from '../components/ModelSpawner'
 import SettingsPanel from '../components/SettingsPanel'
 import AgentHealthPanel from '../components/AgentHealthPanel'
-import ChatSidePanel from '../components/ChatSidePanel'
+import MobileSwipeLayout from '../components/MobileSwipeLayout'
 
 // ─────────────────────────────────────────────
 // WS mode badge
@@ -104,6 +104,7 @@ function HUDStatusBar({
 
 export default function Dashboard() {
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
 
   // ── Real-time data hooks ──────────────────
   const ws = useWebSocket()
@@ -125,6 +126,14 @@ export default function Dashboard() {
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
   }, [])
+
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+
+  if (isMobile) return <MobileSwipeLayout />
 
   return (
     <>
@@ -183,9 +192,14 @@ export default function Dashboard() {
             <AgentMatrix />
           </div>
 
-          {/* Intel Feed — MediaHub (spans 2 rows on desktop) */}
+          {/* Projects */}
+          <div className="projects-cell hud-panel">
+            <DeliveriesBrowser />
+          </div>
+
+          {/* Intel Feed */}
           <div className="intel-feed-cell hud-panel">
-            <MediaHub />
+            <IntelFeed />
           </div>
 
           {/* TokenCostTracker */}
@@ -198,11 +212,6 @@ export default function Dashboard() {
             <DAGWorkflowCanvas />
           </div>
 
-          {/* DeliveriesBrowser */}
-          <div className="deliveries-cell hud-panel">
-            <DeliveriesBrowser />
-          </div>
-
           {/* ModelSpawner */}
           <div className="model-spawner-cell hud-panel">
             <ModelSpawner />
@@ -213,10 +222,6 @@ export default function Dashboard() {
             <AgentHealthPanel />
           </div>
 
-          {/* Chat side panel — right column, full height */}
-          <div className="chat-panel-cell hud-panel">
-            <ChatSidePanel />
-          </div>
         </div>
       </motion.div>
     </>

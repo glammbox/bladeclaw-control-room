@@ -23,7 +23,7 @@ interface Delivery {
   colorScheme: string[]
 }
 
-const MOCK_DELIVERIES: Delivery[] = [
+const DELIVERIES: Delivery[] = [
   { id: 'd1',  project: "Dave's Harley Shop",       ciScore: 98, date: '2026-03-14', status: 'shipped',  size: '4.2 MB', buildTime: '1m 23s', colorScheme: ['#1a1a2e', '#f97316', '#c0c0c0'] },
   { id: 'd2',  project: 'bark-noir-v2',              ciScore: 96, date: '2026-03-13', status: 'shipped',  size: '3.8 MB', buildTime: '1m 11s', colorScheme: ['#0d0d0d', '#8b5cf6', '#e2e8f0'] },
   { id: 'd3',  project: 'neon-dojo-studios',          ciScore: 94, date: '2026-03-12', status: 'shipped',  size: '5.1 MB', buildTime: '1m 44s', colorScheme: ['#050505', '#00d4ff', '#ff0080'] },
@@ -252,9 +252,10 @@ function DeliveryDrawer({ delivery, onClose }: DrawerProps) {
 
 export default function DeliveriesBrowser() {
   const [query, setQuery] = useState('')
+  const [deliveries, setDeliveries] = useState(DELIVERIES)
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null)
 
-  const filtered = MOCK_DELIVERIES.filter(d =>
+  const filtered = deliveries.filter(d =>
     d.project.toLowerCase().includes(query.toLowerCase()) ||
     d.status.includes(query.toLowerCase())
   )
@@ -278,84 +279,84 @@ export default function DeliveriesBrowser() {
           />
         </div>
 
-        {/* Table */}
-        <div className="flex-1 overflow-y-auto scrollbar-thin">
-          <table className="w-full text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-neon/10">
-                <th className="text-left pb-2 font-orbitron text-[10px] text-chrome-dark tracking-wider">PROJECT</th>
-                <th className="text-left pb-2 font-orbitron text-[10px] text-chrome-dark tracking-wider">CI</th>
-                <th className="text-left pb-2 font-orbitron text-[10px] text-chrome-dark tracking-wider">DATE</th>
-                <th className="text-left pb-2 font-orbitron text-[10px] text-chrome-dark tracking-wider">STATUS</th>
-                <th className="text-right pb-2 font-orbitron text-[10px] text-chrome-dark tracking-wider">ZIP</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(d => (
-                <tr
-                  key={d.id}
-                  className="border-b border-neon/5 transition-all duration-200 cursor-pointer group
-                             hover:bg-neon/5 hover:border-neon/20"
-                  onClick={() => {
-                    const slug = d.project.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-                    const url = PROJECT_URLS[d.project] || PROJECT_URLS[slug]
-                    if (url) window.open(url, '_blank')
-                    setSelectedDelivery(d)
+        {/* Cards */}
+        <div className="scrollbar-thin" style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
+          <div className="flex flex-col gap-2">
+            {filtered.map(delivery => (
+              <div
+                key={delivery.id}
+                className="border border-neon/10 rounded-sm px-2 py-2 transition-all duration-200 cursor-pointer group hover:bg-neon/5 hover:border-neon/20"
+                style={{ position: 'relative', boxShadow: 'none' }}
+                onClick={() => {
+                  const slug = delivery.project.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+                  const url = PROJECT_URLS[delivery.project] || PROJECT_URLS[slug]
+                  if (url) window.open(url, '_blank')
+                  setSelectedDelivery(delivery)
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLDivElement).style.boxShadow = 'inset 0 0 20px rgba(0,212,255,0.04)'
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLDivElement).style.boxShadow = 'none'
+                }}
+              >
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setDeliveries(d => d.filter(x => x.id !== delivery.id))
                   }}
-                  style={{ boxShadow: 'none' }}
-                  onMouseEnter={e => {
-                    (e.currentTarget as HTMLTableRowElement).style.boxShadow = 'inset 0 0 20px rgba(0,212,255,0.04)'
+                  style={{
+                    position: 'absolute', top: '4px', right: '4px',
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'rgba(239,68,68,0.6)', fontSize: '12px', lineHeight: 1,
+                    padding: '2px 4px'
                   }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLTableRowElement).style.boxShadow = 'none'
-                  }}
-                >
-                  <td className="py-2 pr-3 font-mono text-chrome group-hover:text-neon transition-colors">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate max-w-[120px]" style={{fontFamily:'Space Grotesk,sans-serif',fontWeight:500}}>{d.project}</span>
-                      {d.status === 'shipped' && (() => {
-                        const slug = d.project.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-                        const url = PROJECT_URLS[d.project] || PROJECT_URLS[slug]
-                        return url ? (
-                          <button
-                            onClick={e => { e.stopPropagation(); window.open(url, '_blank') }}
-                            className="text-[9px] font-mono text-neon border border-neon/20 px-1.5 py-0.5 rounded-sm hover:bg-neon/10 transition-all shrink-0"
-                          >
-                            OPEN →
-                          </button>
-                        ) : null
-                      })()}
-                    </div>
-                  </td>
-                  <td className="py-2 pr-3">
-                    <CIScoreBar score={d.ciScore} />
-                  </td>
-                  <td className="py-2 pr-3 font-mono text-chrome-dark">
-                    {d.date}
-                  </td>
-                  <td className="py-2 pr-3">
-                    <StatusBadge status={d.status} />
-                  </td>
-                  <td className="py-2 text-right">
-                    <button
-                      onClick={e => { e.stopPropagation(); if (d.status === 'shipped') setSelectedDelivery(d) }}
-                      disabled={d.status !== 'shipped'}
-                      title={d.status === 'shipped' ? `Download ${d.size}` : 'Not available'}
-                      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-sm border text-[10px] font-orbitron
-                                  transition-all duration-200
-                                  ${d.status === 'shipped'
-                                    ? 'border-neon/30 text-neon hover:bg-neon/10 hover:border-neon hover:shadow-neon-sm cursor-pointer'
-                                    : 'border-white/5 text-chrome-dark/30 cursor-not-allowed'
-                                  }`}
-                    >
-                      <Download size={9} />
-                      <span>{d.status === 'shipped' ? d.size : '—'}</span>
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  title="Remove"
+                >×</button>
+
+                <div className="flex items-start justify-between gap-2 pr-6">
+                  <span className="truncate max-w-[170px] text-chrome group-hover:text-neon transition-colors" style={{ fontFamily: 'Space Grotesk,sans-serif', fontWeight: 500 }}>
+                    {delivery.project}
+                  </span>
+                  <StatusBadge status={delivery.status} />
+                </div>
+
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <CIScoreBar score={delivery.ciScore} />
+                  <span className="font-mono text-chrome-dark text-[10px]">{delivery.date}</span>
+                </div>
+
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  {delivery.status === 'shipped' && (() => {
+                    const slug = delivery.project.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+                    const url = PROJECT_URLS[delivery.project] || PROJECT_URLS[slug]
+                    return url ? (
+                      <button
+                        onClick={e => { e.stopPropagation(); window.open(url, '_blank') }}
+                        className="text-[9px] font-mono text-neon border border-neon/20 px-1.5 py-0.5 rounded-sm hover:bg-neon/10 transition-all shrink-0"
+                      >
+                        OPEN →
+                      </button>
+                    ) : null
+                  })()}
+                  <button
+                    onClick={e => { e.stopPropagation(); if (delivery.status === 'shipped') setSelectedDelivery(delivery) }}
+                    disabled={delivery.status !== 'shipped'}
+                    title={delivery.status === 'shipped' ? `Download ${delivery.size}` : 'Not available'}
+                    className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-sm border text-[10px] font-orbitron
+                                transition-all duration-200
+                                ${delivery.status === 'shipped'
+                                  ? 'border-neon/30 text-neon hover:bg-neon/10 hover:border-neon hover:shadow-neon-sm cursor-pointer'
+                                  : 'border-white/5 text-chrome-dark/30 cursor-not-allowed'
+                                }`}
+                  >
+                    <Download size={9} />
+                    <span>{delivery.status === 'shipped' ? delivery.size : '—'}</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
 
           {filtered.length === 0 && (
             <div className="text-center py-8 text-chrome-dark font-mono text-xs opacity-50">
@@ -366,9 +367,9 @@ export default function DeliveriesBrowser() {
 
         {/* Footer count */}
         <div className="text-[10px] font-mono text-chrome-dark flex items-center justify-between">
-          <span>{filtered.length} of {MOCK_DELIVERIES.length} deliveries</span>
+          <span>{filtered.length} of {deliveries.length} deliveries</span>
           <span className="text-neon/40">
-            {MOCK_DELIVERIES.filter(d => d.status === 'shipped').length} shipped
+            {deliveries.filter(d => d.status === 'shipped').length} shipped
           </span>
         </div>
       </div>
