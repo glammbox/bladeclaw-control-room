@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Download, Search, CheckCircle, Clock, AlertCircle, XCircle, X, ExternalLink, type LucideIcon } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
-import { invokeGatewayTool } from '../lib/gatewayApi'
 
 const PROJECT_URLS: Record<string, string> = {
   "Dave's Harley Shop": 'https://daves-harley-shop.vercel.app',
@@ -246,41 +245,33 @@ export default function DeliveriesBrowser() {
 
   useEffect(() => {
     const load = async () => {
-      const result = await invokeGatewayTool('read', {
-        path: '/home/austi/.openclaw/workspace/memory/builds-index.md',
-      }) as string | { content?: Array<{ text?: string }> } | null
-
-      const text = typeof result === 'string' ? result : result?.content?.[0]?.text ?? ''
-      const lines = text
-        .split('\n')
-        .filter((l: string) => l.startsWith('|') && !l.includes('---') && !l.includes('Date'))
-
-      const parsed = lines.map((line: string, i: number) => {
-        const cols = line.split('|').map((c: string) => c.trim()).filter(Boolean)
-        const statusText = cols[5] ?? ''
-        const isShipped = statusText.includes('✅')
-        const status: DeliveryStatus = isShipped
-          ? 'shipped'
-          : statusText.includes('❌')
-            ? 'failed'
-            : statusText.includes('⚠️')
-              ? 'building'
-              : 'review'
-        const url = (cols[3] ?? '').startsWith('http') ? cols[3] : null
-        return {
-          id: String(i),
-          project: cols[1] ?? 'Unknown',
-          ciScore: isShipped ? 100 : 0,
-          date: cols[0] ?? '',
-          status,
-          size: '—',
-          buildTime: '—',
-          colorScheme: ['#050505', '#00d4ff', '#4a5568'],
-          url,
-        } as Delivery
-      }).filter((d: Delivery) => d.project && d.project !== 'Project')
-
-      setDeliveries(parsed)
+      try {
+        const res = await fetch('http://localhost:18789/tools/invoke', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer e4ccba5fa1bcc9afb2f43eff40ba9932b1e9ed91589f0d2d', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tool: 'read', args: { path: '/home/austi/.openclaw/workspace/memory/builds-index.md' }, sessionKey: 'main' })
+        })
+        const data = await res.json()
+        // The read tool returns content as text in result.content[0].text
+        const text = data?.result?.content?.[0]?.text ?? data?.result?.details ?? ''
+        const lines = (typeof text === 'string' ? text : '').split('\n')
+          .filter((l: string) => l.startsWith('|') && !l.includes('---') && !l.includes('Date') && !l.includes('Project'))
+        const parsed = lines.map((line: string, i: number) => {
+          const cols = line.split('|').map((c: string) => c.trim()).filter(Boolean)
+          return {
+            id: String(i),
+            date: cols[0] ?? '',
+            project: cols[1] ?? 'Unknown',
+            ciScore: (cols[5] ?? '').includes('✅') ? 100 : 0,
+            size: '—',
+            buildTime: '—',
+            colorScheme: ['#050505', '#00d4ff', '#4a5568'],
+            url: cols[3] ?? null,
+            status: (cols[5] ?? '').includes('✅') ? 'shipped' : 'building',
+          } as Delivery
+        }).filter((d: Delivery) => d.project && d.project.length > 1)
+        if (parsed.length > 0) setDeliveries(parsed)
+      } catch (e) { console.error('deliveries load failed', e) }
     }
     load()
   }, [])
@@ -310,7 +301,7 @@ export default function DeliveriesBrowser() {
         </div>
 
         {/* Cards */}
-        <div className="scrollbar-thin" style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
+        <div className="scrollbar-thin" style={{ flex: 1, minHeight: 0, overflowY: 'scroll', scrollbarWidth: 'thin', scrollbarColor: 'rgba(0,212,255,0.4) transparent' }}>
           <div className="flex flex-col gap-2">
             {filtered.map(delivery => (
               <div
@@ -346,7 +337,11 @@ export default function DeliveriesBrowser() {
 
                 <div className="flex items-start justify-between gap-2 pr-6">
                   <span className="truncate max-w-[170px] text-chrome group-hover:text-neon transition-colors" style={{ fontFamily: 'Space Grotesk,sans-serif', fontWeight: 500 }}>
-                    {delivery.project}
+                    {delivery.url && delivery.url !== '—' && delivery.url !== 'null' ? (
+                      <a href={delivery.url} target="_blank" rel="noopener noreferrer" style={{ color: '#00d4ff', textDecoration: 'none' }} onClick={(e) => e.stopPropagation()}>{delivery.project}</a>
+                    ) : (
+                      <span>{delivery.project}</span>
+                    )}
                   </span>
                   <StatusBadge status={delivery.status} />
                 </div>

@@ -2,16 +2,16 @@ import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { invokeGatewayTool } from '../lib/gatewayApi'
 
-const MODEL_PRICING: Record<string, { input: number; output: number; label: string }> = {
-  'claude-sonnet-4-6': { input: 3.0, output: 15.0, label: 'Claude Sonnet 4.6' },
-  'gpt-5.4': { input: 2.5, output: 10.0, label: 'GPT-5.4' },
-  'gpt-4o': { input: 2.5, output: 10.0, label: 'GPT-4o' },
-  'grok-4-1-fast-reasoning': { input: 0.6, output: 2.4, label: 'Grok Fast' },
-  'gemini-3.1-pro-preview': { input: 1.25, output: 5.0, label: 'Gemini Pro' },
-  'gemini-3-flash-preview': { input: 0.15, output: 0.6, label: 'Gemini Flash' },
-}
-
-const MODEL_USAGE_KEYS = Object.keys(MODEL_PRICING)
+const MODEL_PRICES = [
+  { model: 'claude-sonnet-4-6', provider: 'Anthropic', input: 3.00, output: 15.00 },
+  { model: 'gpt-5.4', provider: 'OpenAI', input: 2.50, output: 15.00 },
+  { model: 'gpt-4o', provider: 'OpenAI', input: 2.50, output: 10.00 },
+  { model: 'gemini-3.1-pro', provider: 'Google', input: 1.25, output: 5.00 },
+  { model: 'gemini-3-flash', provider: 'Google', input: 0.075, output: 0.30 },
+  { model: 'grok-4-1-fast', provider: 'xAI', input: 0.0, output: 0.0 },
+  { model: 'grok-code-fast-1', provider: 'xAI', input: 0.0, output: 0.0 },
+  { model: 'grok-4', provider: 'xAI', input: 0.0, output: 0.0 },
+]
 
 interface AgentSpend {
   id: string
@@ -361,108 +361,27 @@ export default function TokenCostTracker({ className = '' }: TokenCostTrackerPro
         <span className="font-label text-[9px] tracking-widest uppercase mb-1" style={{ color: 'var(--chrome-dim)' }}>
           Per-Agent Spend
         </span>
-        {liveData.agents.map((agent) => (
-          <SpendBar key={agent.id} agent={agent} maxCost={maxAgentCost} />
-        ))}
+        <div style={{ overflowY: 'scroll', maxHeight: '100px', scrollbarWidth: 'thin', scrollbarColor: 'rgba(0,212,255,0.3) transparent' }}>
+          {liveData.agents.map((agent) => (
+            <SpendBar key={agent.id} agent={agent} maxCost={maxAgentCost} />
+          ))}
+        </div>
       </div>
 
       <div className="h-px" style={{ background: 'rgba(0,212,255,0.08)' }} />
 
-      <ModelPricingTable
-        activeModel={liveData.sessions[0]?.model ?? 'claude-sonnet-4-6'}
-        sessions={liveData.sessions}
-      />
-    </div>
-  )
-}
-
-function ModelPricingTable({ activeModel, sessions }: { activeModel: string; sessions: GatewaySession[] }) {
-  const [copied, setCopied] = useState<string | null>(null)
-  const usageByModel = sessions.reduce<Record<string, number>>((acc, session) => {
-    const key = session.model ?? ''
-    if (!key) return acc
-    acc[key] = (acc[key] ?? 0) + (session.totalTokens ?? 0)
-    return acc
-  }, {})
-
-  const handleCopy = (key: string) => {
-    navigator.clipboard.writeText(key).then(() => {
-      setCopied(key)
-      setTimeout(() => setCopied(null), 1500)
-    })
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      <span className="font-label text-[9px] tracking-widest uppercase" style={{ color: 'var(--chrome-dim)' }}>
-        Model Pricing ($/1M tokens)
-      </span>
-      <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-        <table className="w-full text-[9px] border-collapse min-w-[420px]">
-          <thead>
-            <tr style={{ borderBottom: '1px solid rgba(0,212,255,0.08)' }}>
-              <th className="text-left pb-1 pr-2 font-label text-[8px] tracking-wider" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(138,146,164,0.7)', fontSize: '10px' }}>MODEL</th>
-              <th className="text-right pb-1 pr-2 font-label text-[8px] tracking-wider" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(138,146,164,0.7)', fontSize: '10px' }}>$/1M IN</th>
-              <th className="text-right pb-1 pr-2 font-label text-[8px] tracking-wider" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(138,146,164,0.7)', fontSize: '10px' }}>$/1M OUT</th>
-              <th className="text-right pb-1 pr-2 font-label text-[8px] tracking-wider" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(138,146,164,0.7)', fontSize: '10px' }}>TOKENS</th>
-              <th className="text-right pb-1 font-label text-[8px] tracking-wider" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(138,146,164,0.7)', fontSize: '10px' }}>COST</th>
-            </tr>
-          </thead>
-          <tbody>
-            {MODEL_USAGE_KEYS.map((key, index) => {
-              const pricing = MODEL_PRICING[key]
-              const usage = { inputTokens: usageByModel[key] ?? 0, outputTokens: 0 }
-              const cost = (usage.inputTokens / 1_000_000) * pricing.input + (usage.outputTokens / 1_000_000) * pricing.output
-              const totalTokens = usage.inputTokens + usage.outputTokens
-              const isActive = key === activeModel
-
-              return (
-                <tr
-                  key={key}
-                  className="transition-all duration-200"
-                  style={{
-                    borderBottom: '1px solid rgba(0,212,255,0.03)',
-                    background: isActive
-                      ? 'rgba(0,212,255,0.08)'
-                      : index % 2 === 0
-                        ? 'rgba(255,255,255,0.015)'
-                        : 'rgba(255,255,255,0.03)',
-                    border: isActive ? '1px solid rgba(0,212,255,0.2)' : undefined,
-                  }}
-                >
-                  <td className="py-1 pr-2">
-                    <button
-                      onClick={() => handleCopy(key)}
-                      className="text-left transition-colors hover:text-neon font-body"
-                      style={{
-                        color: isActive ? 'var(--neon)' : 'var(--chrome-bright)',
-                        fontWeight: isActive ? '600' : '400',
-                        padding: '1px 4px',
-                        borderRadius: '2px',
-                        display: 'inline-block',
-                      }}
-                      title="Click to copy model ID"
-                    >
-                      {copied === key ? '✓ Copied!' : pricing.label}
-                    </button>
-                  </td>
-                  <td className="py-1 pr-2 text-right tabular-nums font-data" style={{ color: 'var(--chrome)' }}>
-                    ${pricing.input.toFixed(2)}
-                  </td>
-                  <td className="py-1 pr-2 text-right tabular-nums font-data" style={{ color: 'var(--chrome)' }}>
-                    ${pricing.output.toFixed(2)}
-                  </td>
-                  <td className="py-1 pr-2 text-right tabular-nums font-data" style={{ color: 'var(--chrome)' }}>
-                    {(totalTokens / 1000).toFixed(1)}K
-                  </td>
-                  <td className="py-1 text-right tabular-nums font-data" style={{ color: isActive ? 'var(--neon)' : 'var(--chrome-bright)' }}>
-                    <AnimatedValue value={`$${cost.toFixed(4)}`} changed={isActive} />
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+      <div style={{ marginTop: '8px', borderTop: '1px solid rgba(0,212,255,0.08)', paddingTop: '6px' }}>
+        <div style={{ fontFamily: 'Orbitron,monospace', fontSize: '9px', letterSpacing: '0.12em', color: 'rgba(0,212,255,0.6)', marginBottom: '4px' }}>MODEL RATES (per 1M tokens)</div>
+        <div style={{ overflowY: 'scroll', maxHeight: '120px', scrollbarWidth: 'thin', scrollbarColor: 'rgba(0,212,255,0.3) transparent' }}>
+          {MODEL_PRICES.map(m => (
+            <div key={m.model} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', borderBottom: '1px solid rgba(0,212,255,0.04)', fontSize: '9px', fontFamily: 'JetBrains Mono,monospace' }}>
+              <span style={{ color: '#8892a4' }}>{m.model}</span>
+              <span style={{ color: m.input === 0 ? 'rgba(0,212,255,0.3)' : '#00d4ff' }}>
+                {m.input === 0 ? 'free' : `$${m.input}/$${m.output}`}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
